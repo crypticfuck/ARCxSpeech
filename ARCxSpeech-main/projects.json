@@ -1,0 +1,20 @@
+[
+  {
+    "id": "5b5238e6-9704-438a-9159-7673c7c56f6a",
+    "name": "Yoshi",
+    "icon": "Y",
+    "color": "#8f8f95",
+    "status": "active",
+    "createdAt": "2026-09-10T13:47:59.993416",
+    "lastEditedAt": "2026-09-10T13:54:58.352504"
+  },
+  {
+    "id": "292f44f9-7fff-4383-8432-23650288364d",
+    "name": "Pranav",
+    "icon": "P",
+    "color": "#e8a33d",
+    "status": "active",
+    "createdAt": "2026-09-11T01:29:03.876814",
+    "lastEditedAt": "2026-09-11T01:30:00.184504"
+  }
+]

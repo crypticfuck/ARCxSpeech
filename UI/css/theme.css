@@ -1,0 +1,2155 @@
+/* ==========================================================================
+   Base
+   Design tokens, global reset, top-level layout, titlebar, menu bar, and
+   shared button/box primitives used across the whole page. Tokens are
+   lifted directly from the existing app (theme.css / base.css /
+   patients.css / sidebar.css) so this page matches, not just resembles.
+   ========================================================================== */
+
+/* ==========================================================================
+       Tokens -- lifted directly from the existing app (theme.css / base.css /
+       patients.css / sidebar.css) so this page matches, not just resembles.
+       ========================================================================== */
+    :root {
+        --border: #2A2A2A;
+        --bg-page: #000000;
+        --bg-header: #000000;
+        --bg-box: #121212;
+        --bg-box-inner: #000000;
+        --bg-box-hover: #1E1E1E;
+        --bg-chip: #1A1A1A;
+        --bg-inset: #131313;
+        --text-primary: #F9F9F9;
+        --text-secondary: #ABABAB;
+        --text-tertiary: #6E6E6E;
+        --text-muted: #8A8A8A;
+        --accent-red: #E5484D;
+        --accent-amber: #E8A33D;
+        --pinboard-bg: #0D0D0E;
+        --pinboard-dot: rgba(255, 255, 255, 0.14);
+        --pinboard-shadow-1: rgba(0, 0, 0, 0.9);
+        --pinboard-shadow-2: rgba(0, 0, 0, 0.8);
+        --pinboard-highlight: rgba(255, 255, 255, 0.04);
+        --pinboard-rim: rgba(255, 255, 255, 0.06);
+        --terminal-bg: #000000;
+        --terminal-text: rgba(249, 249, 249, 0.9);
+        --terminal-border: transparent;
+        --border-strong: #3A3A3A;
+        --chart-plot-border: rgba(255, 255, 255, 0.04);
+        --chart-grid-line: rgba(255, 255, 255, 0.05);
+        --chart-ring-track: #2A2A2A;
+    }
+
+* {
+        box-sizing: border-box;
+    }
+
+html {
+        height: 100%;
+        width: 100%;
+    }
+
+body {
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        font-family: "Google Sans Flex", sans-serif;
+        background-color: var(--bg-page);
+        color: var(--text-primary);
+    }
+
+#page {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+/* Same fill behavior as #page above, for the project workspace's own
+   top-level wrapper once its content lives inside a <div class="tab-page">
+   in the shared shell -- kept as a separate id (not #page) since #page is
+   the shell's own outer container and a tab's cloned content must not
+   collide with it. */
+#project-view-page {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+/* ---------- Window titlebar + menu bar (combined) ---------- */
+
+    #titlebar {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+        background-color: var(--bg-header);
+        display: flex;
+        align-items: center;
+        padding: 0 0 0 8px;
+        gap: 6px;
+        -webkit-app-region: drag;
+    }
+
+#titlebar-menus {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: 100%;
+        -webkit-app-region: no-drag;
+    }
+
+#window-controls {
+        display: flex;
+        align-items: stretch;
+        height: 100%;
+        -webkit-app-region: no-drag;
+    }
+
+.window-control-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 100%;
+        color: var(--text-tertiary);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+.window-control-btn:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+.window-control-btn.close-control:hover {
+        background-color: var(--accent-red);
+        color: #ffffff;
+    }
+
+/* ---------- App sidebar (toggled from the menu bar) ---------- */
+
+    #app-sidebar-backdrop {
+        position: fixed;
+        top: 48px;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .18s ease;
+        z-index: 400;
+    }
+
+body.theme-light #app-sidebar-backdrop {
+        background-color: rgba(0, 0, 0, 0.15);
+    }
+
+#app-sidebar-backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+#app-sidebar {
+        position: fixed;
+        top: 96px;
+        right: 0;
+        height: calc(100% - 96px);
+        width: 300px;
+        max-width: 85vw;
+        display: flex;
+        flex-direction: column;
+        background-color: #000000;
+        transform: translateX(100%);
+        transition: transform .2s ease;
+        z-index: 410;
+    }
+
+body.theme-light #app-sidebar {
+        background-color: var(--bg-box);
+    }
+
+#app-sidebar.open {
+        transform: translateX(0);
+    }
+
+#app-sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+        height: 48px;
+        padding: 0 12px 0 16px;
+    }
+
+#app-sidebar-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+#app-sidebar-content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 16px;
+    }
+
+#sidebar-toggle-btn {
+        background-color: transparent;
+        border: none;
+    }
+
+#sidebar-toggle-btn:hover {
+        background-color: transparent;
+        border: none;
+    }
+
+.sidebar-section-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        margin-bottom: 10px;
+    }
+
+.sidebar-section-label--spaced {
+        margin-top: 20px;
+    }
+
+.sidebar-graph-btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+.sidebar-graph-btn {
+        margin-right: 0;
+        margin-bottom: 0;
+    }
+
+.sidebar-graph-btn.is-open {
+        border-color: #A1A1A1;
+        color: #A1A1A1;
+    }
+
+/* ---------- Menu bar items (File / Edit / View) ---------- */
+
+.menubar-item {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 4px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+.menubar-item:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+#menubar-spacer {
+        flex: 1;
+        -webkit-app-region: drag;
+    }
+
+#export-btn {
+        -webkit-app-region: no-drag;
+    }
+
+/* ---------- Tab strip (Chrome-style tabs) ---------- */
+
+    #tab-strip {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        gap: 4px;
+        max-width: 50vw;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-app-region: no-drag;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+#tab-strip::-webkit-scrollbar {
+        display: none;
+    }
+
+.tab-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        height: 30px;
+        max-width: 168px;
+        min-width: 76px;
+        padding: 0 6px 0 12px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+.tab-item:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-secondary);
+    }
+
+.tab-item.active {
+        background-color: var(--bg-box-hover);
+        border-color: var(--border);
+        color: var(--text-primary);
+    }
+
+.tab-item-label {
+        flex: 1;
+        min-width: 0;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+.tab-item-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        color: var(--text-tertiary);
+        opacity: 0;
+        transition: background-color .12s ease, color .12s ease, opacity .12s ease;
+    }
+
+.tab-item:hover .tab-item-close,
+.tab-item.active .tab-item-close {
+        opacity: 1;
+    }
+
+.tab-item-close:hover {
+        background-color: var(--bg-box);
+        color: var(--text-primary);
+    }
+
+#new-tab-btn {
+        -webkit-app-region: no-drag;
+    }
+
+/* ---------- Tab pages (per-tab content area) ---------- */
+
+    #tab-pages {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+.tab-page {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+.tab-page.active {
+        display: flex;
+    }
+
+.tab-page-iframe {
+        flex: 1;
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+    }
+
+/* ---------- Menubar dropdowns (File/Edit/View/Help/Developer + Profile) ---------- */
+
+    .menubar-menu {
+        position: relative;
+    }
+
+.menubar-menu.open .menubar-item {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+.menubar-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 190px;
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+        z-index: 50;
+    }
+
+.menubar-menu.open .menubar-dropdown {
+        display: flex;
+    }
+
+#profile-menu {
+        -webkit-app-region: no-drag;
+    }
+
+#profile-menu .menubar-dropdown {
+        left: auto;
+        right: 0;
+        min-width: 220px;
+        padding: 10px;
+        gap: 8px;
+    }
+
+.menubar-dropdown-item {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+.menubar-dropdown-item:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+/* ---------- Hamburger menu (replaces File/Edit/View/Help/Developer/Pinboard row) ---------- */
+
+    .hamburger-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        margin-left: 4px;
+        padding: 0;
+        color: var(--text-primary);
+    }
+
+.hamburger-btn:hover {
+        background-color: transparent;
+        color: var(--text-primary);
+    }
+
+.menubar-menu#hamburger-menu.open .hamburger-btn {
+        background-color: transparent;
+        color: var(--text-primary);
+    }
+
+.hamburger-dropdown {
+        min-width: 210px;
+        padding: 6px;
+        gap: 2px;
+    }
+
+.menubar-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+.menubar-group-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+.menubar-group-header:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+.menubar-group-chevron {
+        color: var(--text-tertiary);
+        transition: transform .12s ease;
+        flex-shrink: 0;
+    }
+
+.menubar-group.open .menubar-group-header {
+        color: var(--text-primary);
+    }
+
+.menubar-group.open .menubar-group-chevron {
+        transform: rotate(-180deg);
+    }
+
+.menubar-group-items {
+        display: none;
+        flex-direction: column;
+        gap: 1px;
+        padding: 2px 0 4px 12px;
+    }
+
+.menubar-group.open .menubar-group-items {
+        display: flex;
+    }
+
+/* ---------- Profile dropdown ---------- */
+
+    #profile-user {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 2px 2px 10px 2px;
+        border-bottom: 1px solid var(--border);
+    }
+
+.profile-avatar {
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: var(--bg-chip);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+.profile-user-info {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+.profile-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+.profile-email {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+.profile-section-label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: var(--text-tertiary);
+        padding: 0 2px;
+    }
+
+#theme-toggle-btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, border-color .12s ease;
+    }
+
+#theme-toggle-btn:hover {
+        background-color: var(--bg-box-hover);
+        border-color: var(--border-strong);
+    }
+
+.theme-toggle-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+    }
+
+.pill-button {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 7px 14px;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+
+.pill-button:hover {
+        background-color: var(--bg-chip);
+        border-color: var(--border-strong);
+    }
+
+.graph-toolbar-btn {
+        background: var(--bg-box-inner);
+        color: var(--text-tertiary);
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        width: auto;
+        height: auto;
+        padding: 8px 14px;
+        margin-right: 8px;
+        font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+        user-select: none;
+        transition: border-color .15s ease, color .15s ease;
+    }
+
+.graph-toolbar-btn:hover {
+        border-color: var(--text-primary);
+        color: var(--text-primary);
+    }
+
+.graph-toolbar-btn.is-open {
+        border-color: #A1A1A1;
+        color: #A1A1A1;
+    }
+
+.add-icon-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        color: var(--text-secondary);
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+    }
+
+.add-icon-button:hover {
+        background-color: var(--bg-box-hover);
+        border-color: var(--border-strong);
+        color: var(--text-primary);
+    }
+
+.icon-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        color: var(--text-tertiary);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+    }
+
+.icon-button:hover {
+        background-color: rgba(229, 72, 77, 0.12);
+        border-color: rgba(229, 72, 77, 0.3);
+        color: var(--accent-red);
+    }
+
+/* ---------- Secondary menubar (recording select + pinboard controls) ---------- */
+
+    #secondary-menubar {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        background-color: var(--bg-header);
+    }
+
+#secondary-menubar-spacer {
+        flex: 1;
+    }
+
+/* ---------- Top navigation strip: Subjects | Sessions+Recordings ---------- */
+
+    #nav-strip {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        margin: 0;
+        padding: 12px 24px 20px 24px;
+        gap: 16px;
+        background-color: transparent;
+        width: 100%;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        /* Pinboard widgets get an ever-increasing z-index as they're
+           created/brought to front. Without isolating this into its own
+           stacking context, that z-index climbs past other UI (like the
+           recording-select dropdown) and widgets start rendering on top
+           of menus/dropdowns instead of staying confined to the board. */
+        isolation: isolate;
+    }
+
+/* ---------- Pinboard canvas: pannable / zoomable layer that widgets live
+   on. Widgets keep the exact same left/top coordinate system they always
+   had (relative to this layer) — panning/zooming just moves/scales the
+   whole layer via CSS transform, so nothing about widget placement,
+   dragging, or resizing needs to change. ---------- */
+
+    #pinboard-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3200px;
+        height: 3200px;
+        transform-origin: 0 0;
+        transform: translate(0px, 0px) scale(1);
+    }
+
+/* Centered placeholder shown when no subject/session/recording is the
+   active analysis target yet. Positioned against #nav-strip (the fixed
+   viewport) rather than #pinboard-canvas (the pannable/zoomable layer),
+   so it always sits in the middle of the visible screen regardless of
+   how far the board has been panned or zoomed. pointer-events: none so
+   it never blocks board panning or clicks-through to whatever's under it. */
+    .pinboard-no-target-msg {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        pointer-events: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        color: #69696F;
+        opacity: 0.55;
+        padding: 0 32px;
+    }
+
+    .pinboard-no-target-msg.is-hidden {
+        display: none;
+    }
+
+    /* Sticky "data changed elsewhere" notice -- see the HTML comment above
+       #project-data-changed-banner in shell.html for why this is a manual
+       prompt rather than a silent auto-refresh. Centered at the top of the
+       fixed viewport (#nav-strip), above pinboard widgets/dropdowns. */
+    .project-data-changed-banner {
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100001;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 3px 10px 3px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border-strong);
+        background-color: var(--bg-box-hover);
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+        cursor: default;
+    }
+
+    body.theme-light .project-data-changed-banner {
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+    }
+
+    .project-data-changed-refresh-btn {
+        flex-shrink: 0;
+        padding: 3px 6px;
+        border-radius: 7px;
+        border: 1px solid var(--border-strong);
+        background-color: var(--accent-blue);
+        color: #051224;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity .12s ease;
+    }
+
+    .project-data-changed-refresh-btn:hover {
+        opacity: 0.85;
+    }
+
+    .project-data-changed-dismiss-btn {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+    .project-data-changed-dismiss-btn:hover {
+        background-color: var(--bg-box);
+        color: var(--text-primary);
+    }
+
+    body.pinboard-pan-mode #nav-strip {
+        cursor: grab;
+    }
+
+    body.pinboard-pan-mode #nav-strip.pinboard-panning {
+        cursor: grabbing;
+    }
+
+    /* While the camera is being moved/zoomed, widgets stop absorbing
+       clicks so a drag always pans the board instead of dragging or
+       resizing whatever happens to be underneath the cursor. */
+    body.pinboard-pan-mode .pinboard-widget {
+        pointer-events: none;
+    }
+
+    .pinboard-pan-toggle-btn,
+    .pinboard-recenter-btn {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100000;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background-color: var(--bg-box-hover);
+        color: var(--text-primary);
+        cursor: pointer;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+        transition: background-color .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease, transform .15s ease;
+    }
+
+    body.theme-light .pinboard-pan-toggle-btn,
+    body.theme-light .pinboard-recenter-btn {
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+    }
+
+    .pinboard-pan-toggle-btn {
+        width: 38px;
+        height: 38px;
+        right: 20px;
+        bottom: 20px;
+    }
+
+    .pinboard-pan-toggle-btn:hover {
+        background-color: var(--bg-chip);
+        border-color: var(--border-strong);
+    }
+
+    .pinboard-pan-toggle-btn.active {
+        color: var(--accent-red);
+        border-color: var(--accent-red);
+    }
+
+    .pinboard-recenter-btn {
+        width: 32px;
+        height: 32px;
+        right: 68px;
+        bottom: 23px;
+        opacity: 0;
+        transform: translateX(6px) scale(0.9);
+        pointer-events: none;
+    }
+
+    /* Partial ring (~10% of the circle) that always points toward where
+       the default view (home) currently sits relative to the camera.
+       Rotated in real time via the --compass-angle custom property as
+       the board is panned/zoomed. */
+    .pinboard-recenter-btn::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: 50%;
+        border: 3px solid var(--text-primary);
+        -webkit-mask-image: conic-gradient(from -18deg, #fff 0deg, #fff 36deg, transparent 36deg 360deg);
+        mask-image: conic-gradient(from -18deg, #fff 0deg, #fff 36deg, transparent 36deg 360deg);
+        transform: rotate(var(--compass-angle, 0deg));
+        transform-origin: 50% 50%;
+        opacity: 1;
+        transition: transform .12s linear, opacity .15s ease;
+        pointer-events: none;
+    }
+
+    /* No ring while the camera has only been zoomed, never actually
+       dragged — there's no drag to point back to yet, so showing a
+       direction there just looked wrong. */
+    .pinboard-recenter-btn.pinboard-recenter-no-direction::after {
+        opacity: 0;
+    }
+
+    body.pinboard-pan-mode .pinboard-recenter-btn {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        pointer-events: auto;
+    }
+
+    .pinboard-recenter-btn:hover {
+        background-color: var(--bg-chip);
+        border-color: var(--border-strong);
+        color: var(--accent-red);
+    }
+
+.box-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px 10px 16px;
+        flex-shrink: 0;
+    }
+
+.box-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+.box-count {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        background-color: var(--bg-chip);
+        border-radius: 20px;
+        padding: 2px 8px;
+    }
+
+/* ---------- Pinboard widgets (draggable, resizable graph placeholders) ---------- */
+
+    .pinboard-widget {
+        --w-scale: 1;
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        min-width: 200px;
+        min-height: 140px;
+        background-color: var(--terminal-bg);
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        box-shadow: none;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+        transition: border-color 0.15s ease;
+        user-select: none;
+    }
+
+.pinboard-widget:hover {
+        border-color: var(--text-primary);
+    }
+
+.pinboard-widget.pinned:hover {
+        border-color: var(--border-strong);
+    }
+
+body.theme-light .pinboard-widget {
+        border-color: rgba(0, 0, 0, 0.15);
+        box-shadow: none;
+    }
+
+body.theme-light .pinboard-widget:hover {
+        border-color: rgba(0, 0, 0, 0.85);
+    }
+
+body.theme-light .pinboard-widget.pinned:hover {
+        border-color: rgba(0, 0, 0, 0.15);
+    }
+
+body.theme-light .pinboard-widget-title {
+        color: #4B4B4F;
+    }
+
+body.theme-light .pinboard-widget-subtype,
+body.theme-light .pinboard-widget-empty,
+body.theme-light .pinboard-no-target-msg,
+body.theme-light .pinboard-values-label,
+body.theme-light .pinboard-values-value {
+        color: #85858A;
+    }
+
+@keyframes pinboard-widget-flash {
+        0%, 100% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
+        30% { box-shadow: 0 0 0 2px var(--accent-red), 0 8px 24px rgba(0, 0, 0, 0.35); }
+    }
+
+.pinboard-widget-highlight {
+        animation: pinboard-widget-flash 0.9s ease;
+    }
+
+.pinboard-widget-header {
+        display: flex;
+        align-items: center;
+        gap: calc(7px * var(--w-scale, 1));
+        padding: calc(9px * var(--w-scale, 1)) calc(10px * var(--w-scale, 1)) calc(7px * var(--w-scale, 1)) calc(12px * var(--w-scale, 1));
+        background-color: transparent;
+        border-bottom: none;
+        cursor: grab;
+        flex-shrink: 0;
+    }
+
+.pinboard-widget.dragging {
+        cursor: grab;
+    }
+
+.pinboard-widget.dragging .pinboard-widget-header {
+        cursor: grabbing;
+    }
+
+.pinboard-widget.pinned .pinboard-widget-header {
+        cursor: default;
+    }
+
+.pinboard-widget-title {
+        flex: 1;
+        min-width: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: calc(11.5px * var(--w-scale, 1));
+        font-weight: 700;
+        color: #B0B0B1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+.pinboard-widget-subtype {
+        flex-shrink: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: calc(9px * var(--w-scale, 1));
+        font-weight: 600;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        color: #69696F;
+        background-color: transparent;
+        border: none;
+        border-radius: 3px;
+        padding: calc(1px * var(--w-scale, 1)) calc(5px * var(--w-scale, 1));
+    }
+
+.pinboard-widget-actions {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        flex-shrink: 0;
+    }
+
+.pinboard-widget-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: calc(22px * var(--w-scale, 1));
+        height: calc(22px * var(--w-scale, 1));
+        border: none;
+        border-radius: calc(5px * var(--w-scale, 1));
+        background: transparent;
+        color: var(--terminal-text);
+        opacity: 0.65;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease, opacity .15s ease;
+        user-select: none;
+        -webkit-user-select: none;
+        flex-shrink: 0;
+    }
+
+.pinboard-widget-btn .pin-icon {
+        width: calc(20px * var(--w-scale, 1));
+        height: calc(23px * var(--w-scale, 1));
+        display: block;
+    }
+
+.pinboard-widget-btn.pinboard-pin-btn {
+        width: calc(26px * var(--w-scale, 1));
+        height: calc(26px * var(--w-scale, 1));
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+.pinboard-widget-btn.pinboard-close-btn {
+        width: calc(26px * var(--w-scale, 1));
+        height: calc(26px * var(--w-scale, 1));
+    }
+
+.pinboard-widget-btn .pin-fill {
+        fill: var(--text-secondary);
+        transition: fill 0.2s ease;
+    }
+
+.pinboard-widget-btn.active .pin-fill {
+        fill: var(--accent-red, #e53935);
+    }
+
+.pinboard-widget-btn svg {
+        width: calc(16px * var(--w-scale, 1));
+        height: calc(16px * var(--w-scale, 1));
+    }
+
+.pinboard-widget-btn:hover {
+        background-color: rgba(217, 164, 65, 0.12);
+        color: var(--terminal-text);
+        opacity: 1;
+    }
+
+.pinboard-widget-btn.active {
+        color: var(--accent-red);
+        opacity: 1;
+    }
+
+.pinboard-widget-btn.active .pin-icon {
+        color: var(--accent-red);
+    }
+
+.pinboard-widget-body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: calc(10px * var(--w-scale, 1));
+    }
+
+.pinboard-widget-empty {
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: calc(10.5px * var(--w-scale, 1));
+        font-weight: 500;
+        color: #69696F;
+        opacity: 0.6;
+        text-align: center;
+        padding: calc(12px * var(--w-scale, 1)) calc(14px * var(--w-scale, 1));
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+.pinboard-widget-body--list {
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: calc(5px * var(--w-scale, 1)) calc(14px * var(--w-scale, 1)) calc(12px * var(--w-scale, 1));
+        overflow: hidden;
+    }
+
+.pinboard-values-list {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+.pinboard-values-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: calc(10px * var(--w-scale, 1));
+        padding: calc(5px * var(--w-scale, 1)) 0;
+        border-bottom: none;
+    }
+
+.pinboard-values-row:last-child {
+        border-bottom: none;
+    }
+
+.pinboard-values-label {
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: calc(11px * var(--w-scale, 1));
+        font-weight: 500;
+        color: #69696F;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+.pinboard-values-value {
+        flex-shrink: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: calc(11.5px * var(--w-scale, 1));
+        font-weight: 700;
+        color: #69696F;
+    }
+
+.pinboard-widget-resize-handle {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 16px;
+        height: 16px;
+        cursor: nwse-resize;
+    }
+
+.pinboard-widget-resize-handle::after {
+        content: "";
+        position: absolute;
+        right: 4px;
+        bottom: 4px;
+        width: 7px;
+        height: 7px;
+        border-right: 2px solid var(--text-tertiary);
+        border-bottom: 2px solid var(--text-tertiary);
+        opacity: .6;
+    }
+
+.pinboard-widget.pinned .pinboard-widget-resize-handle {
+        cursor: default;
+        pointer-events: none;
+    }
+
+.pinboard-widget.pinned .pinboard-widget-resize-handle::after {
+        opacity: .2;
+    }
+
+/* ---------- Close button for headerless graph widgets ---------- */
+/* Graph widgets (Spectrogram, Formants, Voice Quality, Pitch Waveform,
+   DDK Waveform, Contours, and any plain "Widget N") have no header, so their close
+   control floats in the top-right corner and only shows on hover. */
+
+    .pinboard-widget-close-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        border: 1px solid var(--border-strong);
+        background: var(--bg-box-inner);
+        color: var(--text-tertiary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 15;
+        opacity: 0;
+        transition: opacity .12s ease, border-color .15s ease, color .15s ease;
+        padding: 0;
+        font-family: inherit;
+    }
+
+.pinboard-widget:hover .pinboard-widget-close-btn {
+        opacity: 1;
+    }
+
+.pinboard-widget-close-btn:hover {
+        border-color: var(--text-primary);
+        color: var(--text-primary);
+    }
+
+.pinboard-widget-close-btn svg {
+        width: 12px;
+        height: 12px;
+        pointer-events: none;
+    }
+
+/* ---------- Pin button for headerless graph widgets ---------- */
+/* Sits just left of the close button, same hover-reveal treatment. Stays
+   visible (even without hover) once pinned, so the pinned state is clear
+   at a glance. */
+
+    .pinboard-widget-graph-pin-btn {
+        position: absolute;
+        top: 8px;
+        right: 32px;
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        border: none;
+        outline: none;
+        appearance: none;
+        -webkit-appearance: none;
+        background: transparent;
+        box-shadow: none;
+        color: var(--text-tertiary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 15;
+        opacity: 0;
+        transition: opacity .12s ease, color .15s ease;
+        padding: 0;
+        font-family: inherit;
+    }
+
+.pinboard-widget-graph-pin-btn:focus,
+.pinboard-widget-graph-pin-btn:focus-visible {
+        outline: none;
+        box-shadow: none;
+    }
+
+.pinboard-widget:hover .pinboard-widget-graph-pin-btn {
+        opacity: 1;
+    }
+
+.pinboard-widget-graph-pin-btn:hover {
+        background-color: rgba(217, 164, 65, 0.12);
+        color: var(--text-primary);
+    }
+
+.pinboard-widget-graph-pin-btn .pin-icon {
+        width: 23px;
+        height: 23px;
+        pointer-events: none;
+        display: block;
+    }
+
+.pinboard-widget-graph-pin-btn .pin-fill {
+        fill: var(--text-tertiary);
+        transition: fill 0.2s ease;
+    }
+
+.pinboard-widget-graph-pin-btn.active .pin-fill {
+        fill: var(--accent-red, #e53935);
+    }
+
+.pinboard-widget-graph-pin-btn:hover .pin-fill {
+        fill: var(--text-primary);
+    }
+
+.pinboard-widget-graph-pin-btn.active:hover .pin-fill {
+        fill: var(--accent-red, #e53935);
+    }
+
+/* ---------- Spectrogram graph widget (canvas-based) ---------- */
+
+    .spectro-root {
+        position: absolute;
+        inset: 0;
+        padding: 16px 18px 14px;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+.spectro-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+.spectro-title {
+        color: var(--text-primary);
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+    }
+
+.spectro-sub {
+        color: var(--text-muted);
+        font-size: 10.5px;
+        margin-top: 3px;
+    }
+
+.spectro-range-pill {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--bg-chip);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 10px;
+        padding: 4px 8px 4px 9px;
+        border-radius: 7px;
+        white-space: nowrap;
+        margin-top: 25px;
+    }
+
+.spectro-range-pill svg {
+        width: 10px;
+        height: 10px;
+        opacity: 0.7;
+    }
+
+.spectro-body {
+        flex: 1;
+        display: flex;
+        gap: 8px;
+        min-height: 0;
+    }
+
+.spectro-yaxis {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        width: 26px;
+        font-size: 9.5px;
+        color: var(--text-muted);
+        text-align: right;
+        padding: 2px 0;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+    }
+
+.spectro-canvas-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--bg-box-inner);
+        border: 1px solid var(--chart-plot-border);
+    }
+
+.spectro-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+.spectro-gridlines {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: repeating-linear-gradient(to bottom, var(--chart-grid-line) 0, var(--chart-grid-line) 1px, transparent 1px, transparent 25%);
+    }
+
+.spectro-xaxis-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+    }
+
+.spectro-xaxis-spacer {
+        width: 26px;
+        flex-shrink: 0;
+    }
+
+.spectro-xaxis {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+        font-size: 9.5px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+.spectro-legend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding-left: 34px;
+    }
+
+.spectro-legend-label {
+        font-size: 9.5px;
+        color: var(--text-muted);
+        letter-spacing: 0.4px;
+    }
+
+.spectro-legend-bar {
+        flex: 1;
+        height: 5px;
+        border-radius: 3px;
+        background: linear-gradient(to right, rgb(5,8,18), rgb(11,42,97), rgb(21,110,165), rgb(36,168,148), rgb(138,202,90), rgb(238,205,60), rgb(244,140,40), rgb(228,60,50));
+    }
+
+/* ---------- Area chart graph widgets (Pitch Waveform, DDK Waveform, SVG) ---------- */
+
+    .area-root {
+        position: absolute;
+        inset: 0;
+        padding: 16px 18px 14px;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+.area-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+.area-title {
+        color: var(--text-primary);
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+    }
+
+.area-sub {
+        color: var(--text-muted);
+        font-size: 10.5px;
+        margin-top: 3px;
+    }
+
+.area-range-pill {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--bg-chip);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 10px;
+        padding: 4px 8px 4px 9px;
+        border-radius: 7px;
+        white-space: nowrap;
+        margin-top: 25px;
+    }
+
+.area-range-pill svg {
+        width: 10px;
+        height: 10px;
+        opacity: 0.7;
+    }
+
+.area-body {
+        flex: 1;
+        display: flex;
+        gap: 8px;
+        min-height: 0;
+    }
+
+.area-yaxis {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        width: 30px;
+        font-size: 9.5px;
+        color: var(--text-muted);
+        text-align: right;
+        padding: 2px 0;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+    }
+
+/* Rotated axis-title variant of .area-yaxis, used where the y-axis
+   itself needs a label (e.g. "Regularity") and not just tick values --
+   .area-yaxis-wrap sits where a bare .area-yaxis would, with the tick
+   column reused unmodified inside it via .area-yaxis-wrap .area-yaxis.
+   Pair with a matching-width .area-xaxis-spacer override (inline style)
+   and .area-legend padding-left override so the chart plot area still
+   lines up under the wider axis gutter. */
+.area-yaxis-wrap {
+        display: flex;
+        align-items: stretch;
+        gap: 3px;
+        width: 44px;
+        flex-shrink: 0;
+    }
+
+.area-yaxis-label {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg) translateZ(0);
+        backface-visibility: hidden;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        text-align: center;
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding: 2px 0;
+    }
+
+.area-yaxis-wrap .area-yaxis {
+        width: auto;
+        flex: 1;
+    }
+
+.area-chart-wrap {
+        flex: 1;
+        min-width: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--bg-box-inner);
+        border: 1px solid var(--chart-plot-border);
+    }
+
+.area-chart-wrap svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+.area-xaxis-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+    }
+
+.area-xaxis-spacer {
+        width: 30px;
+        flex-shrink: 0;
+    }
+
+.area-xaxis {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+        font-size: 9.5px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+/* Used where tick positions must line up exactly with data points/bars
+   (Interval Bar Chart, Regularity Trend, DDK Peak Tracker) instead of
+   flexbox's even visual spacing, which drifts once tick indices or
+   label widths aren't perfectly uniform. Each <span> gets its own
+   `left: X%` (matching the chart's real x-coordinate for that index)
+   and is centered on that point via translateX(-50%). */
+.area-xaxis--precise {
+        flex: 1;
+        position: relative;
+        height: 12px;
+        font-size: 9.5px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+.area-xaxis--precise span {
+        position: absolute;
+        top: 0;
+        transform: translateX(-50%);
+        white-space: nowrap;
+    }
+
+.area-legend {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 12px;
+        padding-left: 38px;
+    }
+
+.area-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10.5px;
+        color: var(--text-secondary);
+    }
+
+.area-legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+
+/* Reuses .area-root/.area-header/.area-body/.area-yaxis/.area-chart-wrap/
+   .area-xaxis-row/.area-legend* above for the DDK Peak Tracker, Interval
+   Bar Chart, and Regularity Trend widgets -- only their own controls
+   pill, x-axis label row, and hover tooltip need dedicated rules. */
+
+    .ddk-controls {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-chip);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        font-size: 10px;
+        padding: 5px 9px;
+        border-radius: 7px;
+        white-space: nowrap;
+    }
+
+    .area-xaxis--labeled {
+        gap: 2px;
+    }
+
+    .area-axis-title {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-top: 3px;
+        text-align: center;
+    }
+
+    .vs-chart-wrap {
+        overflow: visible;
+    }
+
+    .ddk-chart-wrap {
+        position: relative;
+        cursor: crosshair;
+        overflow: visible;
+    }
+
+    .ddk-tooltip {
+        position: absolute;
+        pointer-events: none;
+        background: var(--bg-panel, #0d0d0f);
+        border: 1px solid var(--border-strong, #2c2c31);
+        border-radius: 7px;
+        padding: 7px 10px;
+        font-size: 10.5px;
+        color: var(--text-primary);
+        line-height: 1.5;
+        white-space: nowrap;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+        opacity: 0;
+        transition: opacity 0.08s ease;
+        z-index: 5;
+        transform: translate(-50%, 0);
+        top: 0;
+        left: 0;
+    }
+
+    .ddk-tooltip.visible { opacity: 1; }
+
+    .ddk-tooltip-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 3px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ddk-tooltip-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ddk-tooltip-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+/* ---------- Pause Ratio graph widget (single split bar, no axes) ---------- */
+
+    .pr-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 14px;
+        width: 100%;
+    }
+
+    .pr-bar-wrap {
+        display: flex;
+        width: 100%;
+        height: 34px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--chart-plot-border);
+        background: var(--bg-box-inner);
+    }
+
+    .pr-seg {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: #0a0a0b;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    .pr-seg-voiced { background: #6ea8fe; }
+    .pr-seg-pause { background: #3a3a3f; color: var(--text-secondary); }
+
+    .pr-caption {
+        display: flex;
+        justify-content: space-between;
+        gap: 22px;
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+
+    .pr-caption b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* ---------- DDK Summary graph widget (axis-less stat cluster) ---------- */
+
+    .stat-cluster {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .stat-card {
+        flex: 1;
+        min-width: 0;
+        background: #040405;
+        border: 1px solid #0F0F10;
+        border-radius: 10px;
+        padding: 12px 10px 11px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-align: center;
+    }
+
+    .stat-label {
+        font-size: 10px;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .stat-value-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 4px;
+    }
+
+    .stat-value {
+        font-size: 23px;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
+    }
+
+    .stat-unit {
+        font-size: 11.5px;
+        color: var(--text-muted);
+    }
+
+    .stat-delta {
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-muted);
+    }
+
+    .stat-delta.up { color: #6ea8fe; }
+    .stat-delta.down { color: #ff8a8a; }
+
+
+/* ---------- Pitch Waveform graph widget (mirrored bar waveform, SVG) ---------- */
+/* Reuses .area-root/.area-header/.area-body/.area-yaxis/.area-chart-wrap/
+   .area-xaxis-row above — only the play/pause + time-readout control
+   pill and the seek overlay need their own rules. */
+
+    .pitch-controls-pill {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-chip);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 4px 10px 4px 4px;
+        border-radius: 999px;
+        margin-right: 40px;
+    }
+
+.pitch-play-btn {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: none;
+        background: var(--text-primary);
+        color: var(--bg-page);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+    }
+
+.pitch-play-btn:hover {
+        opacity: 0.85;
+    }
+
+.pitch-play-icon,
+.pitch-pause-icon {
+        width: 13px;
+        height: 13px;
+    }
+
+.pitch-time-readout {
+        font-size: 10.5px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+.pitch-chart-wrap {
+        position: relative;
+    }
+
+.pitch-seek-overlay {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+    }
+
+/* ---------- Empty states ---------- */
+
+    .box-empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        text-align: center;
+        padding: 0 20px;
+        color: var(--text-tertiary);
+    }
+
+.box-empty .empty-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+.box-empty .empty-desc {
+        font-size: 11px;
+        line-height: 1.5;
+        max-width: 220px;
+    }
+
+/* ---------- Light theme (toggled via the profile menu) ---------- */
+
+    body.theme-light {
+        --border: #E3E3E5;
+        --bg-page: #FAFAFA;
+        --bg-header: #FAFAFA;
+        --bg-box: #FFFFFF;
+        --bg-box-inner: #FFFFFF;
+        --bg-box-hover: #F1F1F2;
+        --bg-chip: #EFEFF0;
+        --bg-inset: #F5F5F6;
+        --text-primary: #16161A;
+        --text-secondary: #4B4B4F;
+        --text-tertiary: #85858A;
+        --text-muted: #6B6B70;
+        --pinboard-bg: #EDEDEF;
+        --pinboard-dot: rgba(0, 0, 0, 0.18);
+        --pinboard-shadow-1: rgba(0, 0, 0, 0.14);
+        --pinboard-shadow-2: rgba(0, 0, 0, 0.09);
+        --pinboard-highlight: rgba(255, 255, 255, 0.9);
+        --pinboard-rim: rgba(255, 255, 255, 0.7);
+        --terminal-bg: #FFFFFF;
+        --terminal-text: rgba(22, 22, 26, 0.9);
+        --border-strong: #C7C7CA;
+        --chart-plot-border: rgba(0, 0, 0, 0.08);
+        --chart-grid-line: rgba(0, 0, 0, 0.07);
+        --chart-ring-track: #E3E3E5;
+    }
+
+body.theme-light .window-control-btn.close-control:hover {
+        color: #ffffff;
+    }
+
+/* ---------- Toast (small inline message, replaces window.alert for
+   validation-style errors) ---------- */
+
+    .toast {
+        position: fixed;
+        top: 44px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-8px);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 9px 14px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .15s ease, transform .15s ease;
+        z-index: 200;
+    }
+
+.toast.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+.toast-spinner {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        border-top-color: var(--text-secondary);
+        animation: toast-spin .8s linear infinite;
+        flex-shrink: 0;
+    }
+
+@keyframes toast-spin {
+        to { transform: rotate(360deg); }
+    }
+
+/* ---------- Top prompt (small inline text-entry bar, replaces
+   window.prompt() for quick single-field input -- same anchor/offset/
+   transition as .toast above, so it reads as part of the same family
+   of lightweight top-of-window surfaces rather than a modal dialog) ---------- */
+
+    .top-prompt {
+        position: fixed;
+        top: 44px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-8px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .15s ease, transform .15s ease;
+        z-index: 200;
+    }
+
+.top-prompt.visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(-50%) translateY(0);
+    }
+
+.top-prompt-panel {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 7px 7px 7px 14px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    }
+
+.top-prompt-panel input {
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background: transparent;
+        border: none;
+        outline: none;
+        width: 220px;
+    }
+
+.top-prompt-panel input::placeholder {
+        color: var(--text-tertiary);
+    }
+
+.top-prompt-panel input.input-error {
+        color: var(--accent-red);
+    }
+
+.top-prompt-panel input.input-error::placeholder {
+        color: var(--accent-red);
+    }
+
+.top-prompt-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+.top-prompt-cancel {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        padding: 7px 10px;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease;
+    }
+
+.top-prompt-cancel:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+.top-prompt-submit {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: #111111;
+        background-color: #F9F9F9;
+        border: none;
+        border-radius: 8px;
+        padding: 7px 12px;
+        cursor: pointer;
+        transition: opacity .15s ease;
+    }
+
+body.theme-light .top-prompt-submit {
+        color: #FFFFFF;
+        background-color: #171717;
+    }
+
+.top-prompt-submit:hover {
+        opacity: .85;
+    }

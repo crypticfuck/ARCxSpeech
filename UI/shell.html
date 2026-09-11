@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<title>Arc Labs</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+    href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap"
+    rel="stylesheet">
+
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/subjects.css">
+<link rel="stylesheet" href="css/sessions-recordings.css">
+<link rel="stylesheet" href="home.css">
+</head>
+
+<body>
+
+    <!-- Shared app-wide, not per-tab -- see the comment on `toastEl` in
+         project.js for why. Every tab's view uses this same one element,
+         regardless of which tab is active. -->
+    <div id="toast" class="toast"></div>
+
+    <div id="page">
+
+        <!-- ================= TITLEBAR + MENU BAR (combined) =================
+             The ONE titlebar for the whole window. Every tab below is a
+             plain <div class="tab-page"> whose content is cloned fresh
+             from one of the <template> elements further down (Home or a
+             project workspace) and mounted via createHomeView()/
+             createProjectView() -- see UI/js/tabs.js. No iframes, no
+             separate documents: one page, one shared titlebar, multiple
+             independent view instances. -->
+        <div id="titlebar" class="pywebview-drag-region">
+            <div id="titlebar-menus">
+            <div class="menubar-menu" id="hamburger-menu">
+                <button class="menubar-item hamburger-btn" id="hamburger-btn" title="Menu" aria-label="Menu" aria-haspopup="true" aria-expanded="false">
+                    <svg width="24" height="24" viewBox="0 0 16 16" fill="none">
+                        <circle cx="3.2" cy="8" r="1.3" fill="currentColor" />
+                        <circle cx="8" cy="8" r="1.3" fill="currentColor" />
+                        <circle cx="12.8" cy="8" r="1.3" fill="currentColor" />
+                    </svg>
+                </button>
+                <div class="menubar-dropdown hamburger-dropdown">
+                    <div class="menubar-group">
+                        <button type="button" class="menubar-group-header" data-group="file">
+                            <span>File</span>
+                            <svg class="menubar-group-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="menubar-group-items">
+                            <button class="menubar-dropdown-item" id="file-new-project-btn">New Project</button>
+                            <button class="menubar-dropdown-item" id="file-open-project-btn">Open Project&hellip;</button>
+                            <button class="menubar-dropdown-item">Save</button>
+                            <button class="menubar-dropdown-item">Save As&hellip;</button>
+                        </div>
+                    </div>
+                    <div class="menubar-group">
+                        <button type="button" class="menubar-group-header" data-group="edit">
+                            <span>Edit</span>
+                            <svg class="menubar-group-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="menubar-group-items">
+                            <button class="menubar-dropdown-item">Undo</button>
+                            <button class="menubar-dropdown-item">Redo</button>
+                            <button class="menubar-dropdown-item">Preferences&hellip;</button>
+                        </div>
+                    </div>
+                    <div class="menubar-group">
+                        <button type="button" class="menubar-group-header" data-group="view">
+                            <span>View</span>
+                            <svg class="menubar-group-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="menubar-group-items">
+                            <button class="menubar-dropdown-item">Zoom In</button>
+                            <button class="menubar-dropdown-item">Zoom Out</button>
+                        </div>
+                    </div>
+                    <div class="menubar-group">
+                        <button type="button" class="menubar-group-header" data-group="help">
+                            <span>Help</span>
+                            <svg class="menubar-group-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="menubar-group-items">
+                            <button class="menubar-dropdown-item">Documentation</button>
+                            <button class="menubar-dropdown-item">Keyboard Shortcuts</button>
+                            <button class="menubar-dropdown-item">About Arc Labs</button>
+                        </div>
+                    </div>
+                    <div class="menubar-group">
+                        <button type="button" class="menubar-group-header" data-group="developer">
+                            <span>Developer</span>
+                            <svg class="menubar-group-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="menubar-group-items">
+                            <button class="menubar-dropdown-item">Toggle DevTools</button>
+                            <button class="menubar-dropdown-item">View Logs</button>
+                            <button class="menubar-dropdown-item" id="custom-script-btn">Custom Script</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <div id="tab-strip" role="tablist" aria-label="Tabs"></div>
+            <button class="add-icon-button" id="new-tab-btn" title="New tab" aria-label="New tab" style="flex-shrink: 0; margin-left: 2px;">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M6 1V11M1 6H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            </button>
+
+            <div id="menubar-spacer" class="pywebview-drag-region"></div>
+            <button class="pill-button" id="export-btn" style="padding: 5px 14px;">Export</button>
+            <div class="menubar-menu" id="profile-menu">
+                <button class="add-icon-button" id="profile-btn" title="Profile" style="width: 26px; height: 26px; margin-left: 4px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8" />
+                        <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    </svg>
+                </button>
+                <div class="menubar-dropdown" id="profile-dropdown">
+                    <div id="profile-user">
+                        <div class="profile-avatar">AR</div>
+                        <div class="profile-user-info">
+                            <div class="profile-name">Arc Researcher</div>
+                            <div class="profile-email">researcher@arclabs.io</div>
+                        </div>
+                    </div>
+                    <div class="profile-section-label">Appearance</div>
+                    <button id="theme-toggle-btn">
+                        <span class="theme-toggle-left">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1.5v2M8 12.5v2M14.5 8h-2M3.5 8h-2M12.4 3.6l-1.4 1.4M5 10l-1.4 1.4M12.4 12.4l-1.4-1.4M5 6l-1.4-1.4"
+                                    stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+                                <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3" />
+                            </svg>
+                            <span class="theme-toggle-label">Dark Mode</span>
+                        </span>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="window-controls">
+                <button class="window-control-btn" id="minimize-btn" title="Minimize">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M1 5H9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+                    </svg>
+                </button>
+                <button class="window-control-btn" id="maximize-btn" title="Maximize">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <rect x="1.5" y="1.5" width="7" height="7" rx="0.5" stroke="currentColor" stroke-width="1.1" />
+                    </svg>
+                </button>
+                <button class="window-control-btn close-control" id="window-close-btn" title="Close">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs.js fills this with one <div class="tab-page"> per tab,
+             each populated by cloning #home-view-template or
+             #project-view-template and mounting the matching factory
+             (createHomeView / createProjectView) onto it. -->
+        <div id="tab-pages"></div>
+
+    </div>
+
+    <!-- ================= View templates ================= -->
+    <!-- Cloned into a fresh <div class="tab-page"> per tab by tabs.js.
+         Neither template includes a titlebar or #toast -- those are the
+         shell's own, shared by every tab (see above). -->
+    <template id="home-view-template">
+
+
+    <!-- ================= LAYOUT ================= -->
+    <div id="layout">
+
+        <!-- ---------------- MAIN: PROJECTS ---------------- -->
+        <div id="main-col">
+            <div class="box">
+                <div class="box-header">
+                    <span class="box-title">Projects</span>
+                    <span class="box-count" id="project-count">4</span>
+                </div>
+                <div class="box-body">
+                    <div id="projects-grid">
+
+                        <button class="project-card project-card--new" id="new-project-card">
+                            <div class="new-plus">
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                            </div>
+                            <span class="new-label">New Project</span>
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ---------------- SIDE COLUMN ---------------- -->
+        <div id="side-col">
+
+            <!-- Profile -->
+            <div class="box">
+                <div class="box-header">
+                    <span class="box-title">Profile</span>
+                </div>
+                <div id="profile-card-body">
+                    <div class="profile-card-avatar">AR</div>
+                    <div>
+                        <div class="profile-card-name">Arc Researcher</div>
+                        <div class="profile-card-role">researcher@arclabs.io</div>
+                    </div>
+                    <button class="profile-card-link" title="View profile">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Storage -->
+            <div class="box">
+                <div class="box-header">
+                    <span class="box-title">Storage</span>
+                </div>
+                <div class="box-body">
+                    <div class="storage-usage-row">
+                        <span class="storage-usage-value">6.2<span class="storage-usage-unit"> GB</span></span>
+                        <span class="storage-usage-unit">of 10 GB</span>
+                    </div>
+                    <div class="storage-bar-wrap"><div class="storage-bar-fill"></div></div>
+                    <div class="storage-caption"><b>62%</b> used across 4 projects</div>
+
+                    <div class="storage-plan-row">
+                        <div>
+                            <div class="storage-plan-name">Researcher Plan</div>
+                            <div class="storage-plan-sub">10 GB included</div>
+                        </div>
+                    </div>
+
+                    <div class="storage-actions">
+                        <button class="pill-button">Buy Storage</button>
+                        <button class="pill-button pill-button--accent">Upgrade</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="box">
+                <div class="box-header">
+                    <span class="box-title">Settings</span>
+                </div>
+                <div class="box-body" style="padding-top:0;">
+
+                    <button class="settings-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                        Account
+                        <svg class="settings-item-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+
+                    <button class="settings-item">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5v2M8 12.5v2M14.5 8h-2M3.5 8h-2M12.4 3.6l-1.4 1.4M5 10l-1.4 1.4M12.4 12.4l-1.4-1.4M5 6l-1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3"/></svg>
+                        Appearance
+                        <svg class="settings-item-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+
+                    <button class="settings-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v4H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 12h16v8H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                        Notifications
+                        <svg class="settings-item-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+
+                    <button class="settings-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="1.5"/></svg>
+                        Privacy &amp; Security
+                        <svg class="settings-item-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- New-project naming prompt. Deliberately NOT a subject-modal-overlay
+         -- no full-screen dim/blur, no click-trap. Anchored to the top of
+         the window like #toast (same top offset, same slide-down-fade
+         transition) so it reads as a quick, dismissible prompt rather than
+         a heavyweight dialog -- closer to the old window.prompt() feel,
+         but styled to match the app instead of the OS. -->
+    <div class="top-prompt" id="newProjectPrompt">
+        <form id="newProjectForm" class="top-prompt-panel">
+            <input type="text" id="newProjectNameInput" placeholder="Name your new project" autocomplete="off">
+            <div class="top-prompt-actions">
+                <button type="button" class="top-prompt-cancel" id="newProjectCancel">Cancel</button>
+                <button type="submit" class="top-prompt-submit">Create</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Delete-project confirmation modal. Same markup/classes as the
+         subject/session confirm-delete modal in the project view
+         template below (#confirmDeleteOverlay etc.) -- each template is
+         cloned into its own container and queried via
+         container.querySelector, so the duplicate ids don't collide. -->
+    <div class="subject-modal-overlay" id="confirmDeleteOverlay">
+        <div class="subject-modal-panel">
+            <div class="subject-modal-title" id="confirmDeleteTitle">Delete Project</div>
+            <div class="subject-modal-message" id="confirmDeleteMessage"></div>
+
+            <div class="subject-modal-actions">
+                <button type="button" class="subject-modal-cancel" id="confirmDeleteCancel">Cancel</button>
+                <button type="button" class="subject-modal-submit subject-modal-submit--danger" id="confirmDeleteConfirm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+
+    </template>
+
+    <template id="project-view-template">
+<div id="project-view-page">
+
+
+        <div id="secondary-menubar">
+            <button class="add-icon-button" id="back-to-home-btn" title="Back to Home" aria-label="Back to Home" style="margin-right: 10px; width: 34px; height: 34px;">
+                <svg width="26" height="26" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 8.5L8 3l6 5.5M4 7v6h3v-4h2v4h3V7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+
+            <!-- Manual refresh -- same underlying refreshProjectData() as the
+                 cross-tab "New data" banner's Refresh button (see project.js),
+                 just always available instead of waiting for another tab to
+                 change something. -->
+            <button class="add-icon-button" id="manual-refresh-btn" title="Refresh project data" aria-label="Refresh project data" style="margin-right: 10px; width: 34px; height: 34px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    <path d="M20 4v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+
+            <div id="recording-select-wrap">
+                <button class="pill-button" id="select-recording-btn" title="Select recording">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align: -2px; margin-right: 6px;">
+                        <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4Z" stroke="currentColor" stroke-width="1.6"/>
+                        <path d="M5 11a7 7 0 0 0 14 0M12 18v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                    </svg>
+                    <span id="select-recording-label">Select Recording</span>
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style="vertical-align: -1px; margin-left: 6px;">
+                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+
+                <div id="recording-select-dropdown">
+                    <div class="box-header">
+                        <div id="list-header-left">
+                            <button class="add-icon-button" id="list-back-btn" title="Back" style="display:none;">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                    <path d="M7.5 2.5L3 6l4.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </button>
+                            <span class="box-title" id="list-title">Subjects</span>
+                        </div>
+                        <div id="list-header-actions">
+                            <div id="sort-trigger-wrap">
+                                <span id="sort-current-label">Name</span>
+                                <button id="sort-trigger" title="Sort: Name (click to change)">
+                                    <svg width="17" height="17" viewBox="0 0 14 14" fill="none">
+                                        <path d="M3 4h8M4.5 7h5M6 10h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <button class="add-icon-button" id="add-subject-btn" title="New subject" style="display:none;">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                    <path d="M6 1V11M1 6H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                </svg>
+                            </button>
+                            <button class="add-icon-button" id="add-session-btn" title="New session" style="display:none;">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                    <path d="M6 1V11M1 6H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                </svg>
+                            </button>
+                            <div id="add-recording-wrap" style="display:none;">
+                                <button class="add-icon-button" id="add-recording-btn" title="New recording">
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                        <path d="M6 1V11M1 6H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div id="add-recording-flyout">
+                                    <button type="button" class="flyout-item" id="add-recording-live-btn">
+                                        <span class="flyout-item-icon">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                                                <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4Z" stroke="currentColor" stroke-width="1.6"/>
+                                                <path d="M5 11a7 7 0 0 0 14 0M12 18v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                                            </svg>
+                                        </span>
+                                        Live Recording
+                                    </button>
+                                    <button type="button" class="flyout-item" id="add-recording-upload-btn">
+                                        <span class="flyout-item-icon">
+                                            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                                                <path d="M7 9.5V1.5M7 1.5L4 4.5M7 1.5L10 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M1.5 9.5V11a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </span>
+                                        Upload
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subjects-list"></div>
+                    <div id="sessions-list" style="display:none;"></div>
+                    <div id="recordings-list" style="display:none;"></div>
+                </div>
+            </div>
+
+            <div id="secondary-menubar-spacer"></div>
+
+            <div class="widget-type-wrap" id="values-type-wrap">
+                <button class="pill-button" id="add-values-btn" title="Add a Values widget to the pinboard">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align: -2px; margin-right: 6px;">
+                        <path d="M4 19V9M10 19V5M16 19v-7M22 19V3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Values
+                    <svg id="add-values-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none" style="vertical-align: -1px; margin-left: 6px;">
+                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+
+                <div class="widget-type-dropdown" id="values-type-dropdown">
+                    <button type="button" class="menubar-dropdown-item" data-value-type="Sustained">Sustained vowel</button>
+                    <button type="button" class="menubar-dropdown-item" data-value-type="DDK">DDK</button>
+                </div>
+            </div>
+
+            <div class="widget-type-wrap" id="quality-type-wrap">
+                <button class="pill-button" id="add-quality-btn" title="Add a Quality widget to the pinboard">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align: -2px; margin-right: 6px;">
+                        <path d="M4 19V9M10 19V5M16 19v-7M22 19V3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Quality
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style="vertical-align: -1px; margin-left: 6px;">
+                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+
+                <div class="widget-type-dropdown" id="quality-type-dropdown">
+                    <button type="button" class="menubar-dropdown-item" data-value-type="Overall">Overall Quality</button>
+                    <button type="button" class="menubar-dropdown-item" data-value-type="SNR/Signal">SNR/Signal Quality</button>
+                    <button type="button" class="menubar-dropdown-item" data-value-type="RMS/Noise/Clipping">RMS/Noise/Clipping</button>
+                    <button type="button" class="menubar-dropdown-item" data-value-type="Ambient/Spectral">Ambient/Spectral Characteristics</button>
+                </div>
+            </div>
+
+            <button class="add-icon-button" id="sidebar-toggle-btn" title="Toggle sidebar" aria-label="Toggle sidebar" aria-haspopup="true" aria-expanded="false" aria-controls="app-sidebar" style="margin-left: 8px; width: 32px; height: 32px; display: none;">
+                <svg width="26" height="26" viewBox="0 0 16 16" fill="none">
+                    <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.3" />
+                    <path d="M10 2.5V13.5" stroke="currentColor" stroke-width="1.3" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="nav-strip">
+            <div id="pinboard-canvas"></div>
+
+            <div id="pinboard-no-target-msg" class="pinboard-no-target-msg">
+                Select a subject, session, or recording to begin
+            </div>
+
+            <button type="button" id="pinboard-recenter-btn" class="pinboard-recenter-btn" title="Reset view" aria-label="Reset view">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="1.8"/>
+                    <line x1="12" y1="1.5" x2="12" y2="6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="12" y1="18" x2="12" y2="22.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="1.5" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="18" y1="12" x2="22.5" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </button>
+
+            <button type="button" id="pinboard-pan-toggle-btn" class="pinboard-pan-toggle-btn" title="Move &amp; zoom board" aria-label="Move &amp; zoom board" aria-pressed="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <g stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="2" x2="12" y2="22"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <polyline points="9,5 12,2 15,5"/>
+                        <polyline points="9,19 12,22 15,19"/>
+                        <polyline points="5,9 2,12 5,15"/>
+                        <polyline points="19,9 22,12 19,15"/>
+                    </g>
+                </svg>
+            </button>
+
+            <!-- Shown when another tab on this same project creates/deletes a
+                 subject, session, or recording (see the "arc-project-data-changed"
+                 listener in project.js). Deliberately NOT an auto-refresh --
+                 this tab may have graphs open mid-analysis, and silently
+                 redrawing them while someone's reading a value would be worse
+                 than asking first. Positioned against #nav-strip (the fixed
+                 viewport), same as .pinboard-no-target-msg, so it stays put
+                 regardless of pan/zoom. -->
+            <div id="project-data-changed-banner" class="project-data-changed-banner" style="display:none;">
+                <span>New data was added to this project in another tab.</span>
+                <button type="button" id="project-data-changed-refresh-btn" class="project-data-changed-refresh-btn">Refresh</button>
+                <button type="button" id="project-data-changed-dismiss-btn" class="project-data-changed-dismiss-btn" title="Dismiss" aria-label="Dismiss">
+                    <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
+                        <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+
+    </div>
+
+    <div class="subject-modal-overlay" id="addSubjectOverlay">
+        <div class="subject-modal-panel">
+            <div class="subject-modal-title">Add Subject</div>
+
+            <form id="addSubjectForm">
+                <div class="subject-modal-fields">
+                    <div class="subject-modal-field">
+                        <label for="subjectNameInput">Subject Name</label>
+                        <input type="text" id="subjectNameInput" placeholder="Jane Doe" required>
+                    </div>
+                    <div class="subject-modal-field">
+                        <label for="subjectIdInput">Subject ID</label>
+                        <input type="text" id="subjectIdInput" placeholder="Auto-generated if left blank">
+                    </div>
+                    <div class="subject-modal-field">
+                        <label for="subjectSexInput">Sex</label>
+                        <select id="subjectSexInput">
+                            <option value="">Select&hellip;</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="subject-modal-field">
+                        <label for="subjectAgeInput">Age</label>
+                        <input type="number" id="subjectAgeInput" class="no-spinner" min="0" max="130"
+                            placeholder="e.g. 36">
+                    </div>
+                    <div class="subject-modal-field">
+                        <label for="subjectGroupInput">Group</label>
+                        <input type="text" id="subjectGroupInput" placeholder="Control">
+                    </div>
+                </div>
+
+                <div class="subject-modal-actions">
+                    <button type="button" class="subject-modal-cancel" id="addSubjectCancel">Cancel</button>
+                    <button type="submit" class="subject-modal-submit">Add Subject</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="subject-modal-overlay" id="addSessionOverlay">
+        <div class="subject-modal-panel">
+            <div class="subject-modal-title">Add Session</div>
+
+            <form id="addSessionForm">
+                <div class="subject-modal-fields">
+                    <div class="subject-modal-field">
+                        <label for="sessionNameInput">Session Name</label>
+                        <input type="text" id="sessionNameInput" placeholder="Leave blank for &ldquo;Session N&rdquo;">
+                    </div>
+                </div>
+
+                <div class="subject-modal-actions">
+                    <button type="button" class="subject-modal-cancel" id="addSessionCancel">Cancel</button>
+                    <button type="submit" class="subject-modal-submit">Add Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="subject-modal-overlay" id="confirmDeleteOverlay">
+        <div class="subject-modal-panel">
+            <div class="subject-modal-title" id="confirmDeleteTitle">Delete</div>
+            <div class="subject-modal-message" id="confirmDeleteMessage"></div>
+
+            <div class="subject-modal-actions">
+                <button type="button" class="subject-modal-cancel" id="confirmDeleteCancel">Cancel</button>
+                <button type="button" class="subject-modal-submit subject-modal-submit--danger" id="confirmDeleteConfirm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shown when this project gets deleted from a Home tab (or any
+         other tab) while this project tab is still open. No Cancel/
+         Escape dismissal -- the underlying data is genuinely gone, so
+         the only way out is back to Home. See project.js's
+         arc-project-deleted listener. -->
+    <div class="subject-modal-overlay" id="projectDeletedOverlay">
+        <div class="subject-modal-panel">
+            <div class="subject-modal-title">Project Deleted</div>
+            <div class="subject-modal-message">This project has been deleted. All of its subjects, sessions, and recordings are gone.</div>
+
+            <div class="subject-modal-actions">
+                <button type="button" class="subject-modal-submit" id="projectDeletedHomeBtn" style="width:100%;">Back to Home</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="subject-modal-overlay" id="addRecordingOverlay">
+        <div class="subject-modal-panel subject-modal-panel--recording">
+            <button type="button" class="recording-modal-back" id="recordingModalBack" title="Back">
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+                    <path d="M7.5 2.5L3 6l4.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Back
+            </button>
+
+            <button type="button" class="recording-modal-extract" id="recordingModalExtractBtn" title="Run feature extraction on every recording logged this session">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 002 2h10a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span id="recordingModalExtractBtnLabel">Extract Features</span>
+            </button>
+
+            <div id="recording-modal-body">
+
+                <!-- ============ TOP SECTION (60%): record | graph ============ -->
+                <div id="recording-top-section">
+
+                    <div id="recording-top-right">
+                        <div class="task-status-panel">
+                            <div class="task-done-block" id="taskDoneBlock">
+                                <div class="task-done-circle" id="taskDoneCircle">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </div>
+                                <span class="task-done-label" id="taskDoneLabel">Recording complete</span>
+                            </div>
+
+                            <div class="task-controls-topleft">
+                                <div class="task-type-toggle" id="taskTypeToggle" role="tablist" aria-label="Task type">
+                                    <button type="button" class="task-type-option is-active" data-task-type="Sustained" role="tab" aria-selected="true">Sustained Vowel</button>
+                                    <button type="button" class="task-type-option" data-task-type="DDK" role="tab" aria-selected="false">DDK</button>
+                                </div>
+                            </div>
+
+                            <div class="task-duration task-controls-topright">
+                                <span class="task-duration-label">Duration</span>
+                                <div class="task-duration-stepper">
+                                    <button type="button" class="task-duration-btn" id="taskDurationMinus" title="Decrease duration">
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                                            <path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                        </svg>
+                                    </button>
+                                    <span class="task-duration-value" id="taskDurationValue">5s</span>
+                                    <button type="button" class="task-duration-btn" id="taskDurationPlus" title="Increase duration">
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="task-record-block">
+                                <div class="task-prompt" id="taskPrompt">
+                                    <span class="task-prompt-label" id="taskPromptLabel">Hold</span>
+                                    <span class="task-prompt-sound" id="taskPromptSound">/a/</span>
+                                </div>
+
+                                <div class="task-recording-stage" id="taskRecordingStage">
+                                    <div class="recording-status-line" id="recordingStatusLine" title="Tap to stop recording">
+                                        <span class="recording-dot"></span>
+                                        <span class="recording-status-text">Recording &middot; <span id="recordingStatusTaskLabel">Sustained</span> Task</span>
+                                        <span class="recording-status-timer" id="recordingStatusTimer">0:00</span>
+                                    </div>
+
+                                    <div class="task-record-slot" id="taskRecordSlot">
+                                        <button type="button" class="task-record-btn" id="taskRecordBtn" title="Tap to start recording">
+                                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                                                <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4Z" stroke="currentColor" stroke-width="1.6"/>
+                                                <path d="M5 11a7 7 0 0 0 14 0M12 18v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                                            </svg>
+                                        </button>
+
+                                        <div class="task-countdown-circle" id="taskCountdownCircle">
+                                            <span class="task-countdown-number" id="taskCountdownNumber">3</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="task-countdown-label" id="taskCountdownLabel">Get ready&hellip;</span>
+
+                                    <div class="recording-meter" id="recordingMeter">
+                                        <div class="recording-dotted-row" id="recordingDottedRow"></div>
+                                        <div class="recording-progress-track">
+                                            <div class="recording-progress-fill" id="recordingProgressFill"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="recording-top-left">
+                        <div class="recording-log-box" id="recordingLogBox">
+                            <div class="recording-log-header">Recordings</div>
+                            <ul class="recording-log-list" id="recordingLogList"></ul>
+                            <div class="recording-log-empty" id="recordingLogEmpty">No recordings yet</div>
+                        </div>
+                        <div class="graph-placeholder-box graph-placeholder-box--secondary" id="graphPlaceholderBoxSecondary">
+                            <span class="graph-placeholder-text">Graph will display here</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ============ Post-recording quality check overlay ============
+                 Shown right after a take finishes and before the brief
+                 "Recording complete" confirmation. Stage 1 is a short
+                 simulated chain-of-custody / signal-quality check; Stage 2
+                 lets the user keep (Complete) or discard (Re-record) the
+                 take based on the result. Rating + environment copy are
+                 placeholders until the backend quality-check response is
+                 wired in. -->
+            <div class="quality-check-overlay" id="qualityCheckOverlay">
+
+                <div class="quality-check-loading" id="qualityCheckLoading">
+                    <div class="quality-check-spinner" aria-hidden="true"></div>
+                    <div class="quality-check-loading-title">Checking Recording Quality</div>
+                    <div class="quality-check-loading-sub">Chain-of-custody check and signal quality analysis&hellip;</div>
+                </div>
+
+                <div class="quality-review-card" id="qualityReviewCard">
+                    <div class="quality-review-badge" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 3.5 L21.5 20.5 L2.5 20.5 Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                            <path d="M12 9.5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <circle cx="12" cy="17.4" r="1" fill="currentColor"/>
+                        </svg>
+                    </div>
+
+                    <h3 class="quality-review-heading">
+                        <span id="qualityReviewTaskLabel">Sustained Vowel</span>
+                        <span class="quality-review-dash">&mdash;</span>
+                        <span class="quality-review-stars" id="qualityReviewStars"></span>
+                    </h3>
+
+                    <p class="quality-review-subtitle">Review this recording's quality before continuing.</p>
+
+                    <div class="quality-review-env-box">
+                        <div class="quality-review-env-title" id="qualityReviewEnvTitle">Good Recording Environment</div>
+                        <div class="quality-review-env-desc" id="qualityReviewEnvDesc">Low background noise relative to patient speech.</div>
+                    </div>
+
+                    <p class="quality-review-warning">Speech biomarkers extracted from low-quality recordings may be less reliable. Keep this recording to continue, or re-record it if you're not satisfied with this take.</p>
+
+                    <div class="quality-review-actions">
+                        <button type="button" class="quality-review-btn quality-review-btn--rerecord" id="qualityReviewRerecordBtn">Re-record</button>
+                        <button type="button" class="quality-review-btn quality-review-btn--complete" id="qualityReviewCompleteBtn">Complete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden native file picker used by the "Upload" flyout item --
+         opened programmatically after the task type is chosen below. -->
+    <input type="file" id="uploadRecordingInput" accept=".wav,audio/wav,audio/x-wav,audio/*" multiple style="display:none;">
+
+    <div class="subject-modal-overlay" id="uploadTaskOverlay">
+        <div class="subject-modal-panel">
+            <div class="subject-modal-title">Upload Recordings</div>
+            <div class="subject-modal-fields">
+                <div class="subject-modal-field">
+                    <label>Task Type</label>
+                    <div class="task-type-toggle" id="uploadTaskTypeToggle" role="tablist" aria-label="Task type">
+                        <button type="button" class="task-type-option is-active" data-task-type="Sustained" role="tab" aria-selected="true">Sustained Vowel</button>
+                        <button type="button" class="task-type-option" data-task-type="DDK" role="tab" aria-selected="false">DDK</button>
+                    </div>
+                </div>
+            </div>
+            <div class="subject-modal-actions">
+                <button type="button" class="subject-modal-cancel" id="uploadTaskCancel">Cancel</button>
+                <button type="button" class="subject-modal-submit" id="uploadTaskContinue">Choose Files&hellip;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= App sidebar (toggled from the menu bar) ================= -->
+    <div id="app-sidebar-backdrop"></div>
+    <aside id="app-sidebar" aria-hidden="true">
+        <div id="app-sidebar-header">
+            <span id="app-sidebar-title">Graphs</span>
+            <button class="add-icon-button" id="app-sidebar-close-btn" title="Close sidebar" aria-label="Close sidebar">
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M1.5 1.5L10.5 10.5M10.5 1.5L1.5 10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                </svg>
+            </button>
+        </div>
+        <!-- Populated dynamically by renderSidebarContent() in project.js,
+             based on the current analysis target (see SIDEBAR_LAYOUTS). -->
+        <div id="app-sidebar-content">
+        </div>
+    </aside>
+    </template>
+
+    <script src="js/shell.js"></script>
+    <script src="js/home.js"></script>
+    <script src="js/project.js"></script>
+    <script src="js/tabs.js"></script>
+
+</body>
+</html>
+

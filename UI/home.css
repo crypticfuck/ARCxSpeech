@@ -1,0 +1,769 @@
+
+    :root {
+        --border: #2A2A2A;
+        --border-strong: #3A3A3A;
+        --bg-page: #000000;
+        --bg-header: #000000;
+        --bg-box: #121212;
+        --bg-box-inner: #000000;
+        --bg-box-hover: #1E1E1E;
+        --bg-chip: #1A1A1A;
+        --bg-inset: #131313;
+        --text-primary: #F9F9F9;
+        --text-secondary: #ABABAB;
+        --text-tertiary: #6E6E6E;
+        --text-muted: #8A8A8A;
+        --accent-red: #E5484D;
+        --accent-blue: #6EA8FE;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+        margin: 0;
+        font-family: "Google Sans Flex", sans-serif;
+        background-color: var(--bg-page);
+        color: var(--text-primary);
+    }
+
+    /* ---------- Window titlebar + menu bar (combined) ---------- */
+
+    #titlebar {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+        background-color: var(--bg-header);
+        display: flex;
+        align-items: center;
+        padding: 0 0 0 8px;
+        gap: 6px;
+        -webkit-app-region: drag;
+    }
+
+    #titlebar-menus {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: 100%;
+        -webkit-app-region: no-drag;
+    }
+
+    #window-controls {
+        display: flex;
+        align-items: stretch;
+        height: 100%;
+        -webkit-app-region: no-drag;
+    }
+
+    .window-control-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 100%;
+        color: var(--text-tertiary);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+    .window-control-btn:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+    .window-control-btn.close-control:hover {
+        background-color: var(--accent-red);
+        color: #ffffff;
+    }
+
+    /* ---------- Menu bar items (File / Edit / View) ---------- */
+
+    .menubar-item {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 4px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+    .menubar-item:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+    #menubar-spacer {
+        flex: 1;
+        -webkit-app-region: drag;
+    }
+
+    /* ---------- Tab strip (Chrome-style tabs) ---------- */
+
+    #tab-strip {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        gap: 4px;
+        max-width: 50vw;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-app-region: no-drag;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    #tab-strip::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tab-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        height: 30px;
+        max-width: 168px;
+        min-width: 76px;
+        padding: 0 6px 0 12px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .tab-item:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-secondary);
+    }
+
+    .tab-item.active {
+        background-color: var(--bg-box-hover);
+        border-color: var(--border);
+        color: var(--text-primary);
+    }
+
+    .tab-item-label {
+        flex: 1;
+        min-width: 0;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .tab-item-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        color: var(--text-tertiary);
+        opacity: 0;
+        transition: background-color .12s ease, color .12s ease, opacity .12s ease;
+    }
+
+    .tab-item:hover .tab-item-close,
+    .tab-item.active .tab-item-close {
+        opacity: 1;
+    }
+
+    .tab-item-close:hover {
+        background-color: var(--bg-box);
+        color: var(--text-primary);
+    }
+
+    #new-tab-btn {
+        -webkit-app-region: no-drag;
+    }
+
+    /* ---------- Menubar dropdowns (File/Edit/View/Help/Developer + Profile) ---------- */
+
+    .menubar-menu { position: relative; }
+
+    .menubar-menu.open .menubar-item {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+    .menubar-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        min-width: 190px;
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+        z-index: 50;
+    }
+
+    .menubar-menu.open .menubar-dropdown { display: flex; }
+
+    #profile-menu {
+        -webkit-app-region: no-drag;
+    }
+
+    #profile-menu .menubar-dropdown {
+        left: auto;
+        right: 0;
+        min-width: 220px;
+        padding: 10px;
+        gap: 8px;
+    }
+
+    .menubar-dropdown-item {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+    .menubar-dropdown-item:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+    /* ---------- Hamburger menu (replaces File/Edit/View/Help/Developer/Pinboard row) ---------- */
+
+    .hamburger-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        margin-left: 4px;
+        padding: 0;
+        color: var(--text-primary);
+    }
+
+    .hamburger-btn:hover {
+        background-color: transparent;
+        color: var(--text-primary);
+    }
+
+    .menubar-menu#hamburger-menu.open .hamburger-btn {
+        background-color: transparent;
+        color: var(--text-primary);
+    }
+
+    .hamburger-dropdown {
+        min-width: 210px;
+        padding: 6px;
+        gap: 2px;
+    }
+
+    .menubar-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .menubar-group-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+    .menubar-group-header:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+    .menubar-group-chevron {
+        color: var(--text-tertiary);
+        transition: transform .12s ease;
+        flex-shrink: 0;
+    }
+
+    .menubar-group.open .menubar-group-header {
+        color: var(--text-primary);
+    }
+
+    .menubar-group.open .menubar-group-chevron {
+        transform: rotate(-180deg);
+    }
+
+    .menubar-group-items {
+        display: none;
+        flex-direction: column;
+        gap: 1px;
+        padding: 2px 0 4px 12px;
+    }
+
+    .menubar-group.open .menubar-group-items { display: flex; }
+
+    /* ---------- Profile dropdown ---------- */
+
+    #profile-user {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 2px 2px 10px 2px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .profile-avatar {
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: var(--bg-chip);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .profile-user-info {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .profile-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .profile-email {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .profile-section-label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: var(--text-tertiary);
+        padding: 0 2px;
+    }
+
+    #theme-toggle-btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, border-color .12s ease;
+    }
+
+    #theme-toggle-btn:hover {
+        background-color: var(--bg-box-hover);
+        border-color: var(--border-strong);
+    }
+
+    .theme-toggle-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+    }
+
+    .pill-button {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 7px 14px;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+
+    .pill-button:hover {
+        background-color: var(--bg-chip);
+        border-color: var(--border-strong);
+    }
+
+    .pill-button--accent {
+        background-color: var(--text-primary);
+        color: #0a0a0a;
+        border-color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    .pill-button--accent:hover {
+        opacity: 0.88;
+        background-color: var(--text-primary);
+    }
+
+    .add-icon-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        color: var(--text-secondary);
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+    }
+
+    .add-icon-button:hover {
+        background-color: var(--bg-box-hover);
+        border-color: var(--border-strong);
+        color: var(--text-primary);
+    }
+
+    /* ---------- Page layout ---------- */
+
+    #layout {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        width: 100%;
+        /* Locked to the app's default (non-maximized) window width -- see
+           webview.create_window(width=1200, ...) in main.py -- instead of
+           the previous 1600px cap. At 1200px this looks identical to
+           before, but now maximizing/fullscreening the window no longer
+           stretches the grid/cards to fill the extra space: #layout just
+           stays this size and centers, with empty background on either
+           side, rather than growing along with the window. */
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 28px 24px 60px 24px;
+    }
+
+    #main-col { flex: 1; min-width: 0; }
+    #side-col {
+        width: 300px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    /* ---------- Generic box ---------- */
+
+    .box {
+        background-color: var(--bg-box);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .box-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 18px 12px 18px;
+    }
+
+    .box-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .box-count {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        background-color: var(--bg-chip);
+        border-radius: 20px;
+        padding: 2px 9px;
+    }
+
+    .box-body { padding: 4px 18px 18px 18px; }
+
+    /* ---------- Projects grid ---------- */
+
+    #projects-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    .project-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 14px;
+        background-color: var(--bg-box-inner);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease, transform .1s ease;
+        text-align: left;
+        font-family: inherit;
+        color: inherit;
+        min-height: 128px;
+    }
+
+    .project-card:hover {
+        background-color: var(--bg-box-hover);
+        border-color: var(--border-strong);
+    }
+
+    .project-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-end;
+    }
+
+    .project-card-top-right {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+        margin: -8px -8px 0 0;
+    }
+
+    /* Reuses .row-ellipsis-btn's hover/opacity behavior from
+       subjects.css for this card's delete (trash) button, even though
+       it's no longer actually an ellipsis. */
+    .project-card:hover .row-ellipsis-btn,
+    .project-card:focus-within .row-ellipsis-btn {
+        opacity: 1;
+    }
+
+    .project-card .row-ellipsis-btn:hover {
+        color: var(--accent-red);
+    }
+
+    .project-name {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .project-meta {
+        font-size: 11px;
+        color: var(--text-tertiary);
+    }
+
+    /* New project card (dashed) */
+
+    .project-card--new {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 8px;
+        border-style: dashed;
+        color: var(--text-tertiary);
+        min-height: 128px;
+    }
+
+    .project-card--new:hover { color: var(--text-primary); }
+
+    .new-plus {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 1px solid var(--border-strong);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: inherit;
+    }
+
+    .new-label { font-size: 12px; font-weight: 500; }
+
+    /* ---------- Profile card ---------- */
+
+    #profile-card-body {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 18px 18px 18px;
+    }
+
+    .profile-card-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .profile-card-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .profile-card-role { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+    .profile-card-link {
+        margin-left: auto;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        background: transparent;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background-color .15s ease, color .15s ease;
+    }
+
+    .profile-card-link:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+    /* ---------- Settings list ---------- */
+
+    .settings-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        text-align: left;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 8px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+    .settings-item:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+    .settings-item svg { flex-shrink: 0; color: var(--text-tertiary); }
+    .settings-item:hover svg { color: var(--text-primary); }
+
+    .settings-item-chevron { margin-left: auto; color: var(--text-tertiary) !important; }
+
+    /* ---------- Storage card ---------- */
+
+    .storage-usage-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .storage-usage-value {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .storage-usage-unit { font-size: 12px; font-weight: 500; color: var(--text-tertiary); }
+
+    .storage-bar-wrap {
+        width: 100%;
+        height: 8px;
+        border-radius: 20px;
+        background-color: var(--bg-inset);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .storage-bar-fill {
+        height: 100%;
+        width: 62%;
+        border-radius: 20px;
+        background: linear-gradient(90deg, var(--accent-blue), #8fbcff);
+    }
+
+    .storage-caption {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        margin-bottom: 16px;
+    }
+
+    .storage-caption b { color: var(--text-secondary); font-weight: 600; }
+
+    .storage-plan-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: var(--bg-box-inner);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+    }
+
+    .storage-plan-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+    .storage-plan-sub { font-size: 10.5px; color: var(--text-tertiary); margin-top: 1px; }
+
+    .storage-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .storage-actions .pill-button { flex: 1; padding: 8px 10px; text-align: center; }

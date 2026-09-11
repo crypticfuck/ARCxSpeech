@@ -1,0 +1,1576 @@
+/* ==========================================================================
+   Subjects box
+   Metadata | Subjects two-column split, the sort options popover, and
+   subject list item styling.
+   ========================================================================== */
+
+/* ==========================================================================
+   Subject / Session / Recording select dropdown
+   Drill-down list (Subjects -> Sessions -> Recordings) that opens under
+   the "Select Recording" button in the secondary menubar.
+   ========================================================================== */
+
+#recording-select-wrap {
+        position: relative;
+    }
+
+#recording-select-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 320px;
+        /* Fixed (not max-) height so the panel always opens at its full
+           size, even when the active list (subjects/sessions/recordings)
+           is empty -- the empty-state message then just sits inside a
+           full-height panel instead of the whole dropdown shrinking to
+           hug it. */
+        height: 420px;
+        display: none;
+        flex-direction: column;
+        background-color: var(--bg-box);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        overflow: visible;
+        z-index: 50;
+    }
+
+#recording-select-dropdown.open {
+        display: flex;
+    }
+
+/* Lists still round off/clip their own scroll area even though the panel
+   itself no longer clips (needed so the add-recording flyout can escape
+   the panel's right edge, see below). */
+    #subjects-list,
+    #sessions-list,
+    #recordings-list {
+        border-radius: 0 0 12px 12px;
+    }
+
+/* ==========================================================================
+   Widget type dropdowns
+   Opens under the "Values" / "Quality" buttons in the secondary menubar and
+   lets the user choose which widget subtype to drop onto the pinboard.
+   ========================================================================== */
+
+.widget-type-wrap {
+        position: relative;
+    }
+
+.widget-type-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        min-width: 170px;
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+        z-index: 50;
+    }
+
+.widget-type-dropdown.open {
+        display: flex;
+    }
+
+#quality-type-dropdown {
+        min-width: 230px;
+    }
+
+/* Drill-down list header: back button + level title on the left,
+   level-specific actions (sort / add) on the right. Swaps between
+   Subjects -> Sessions -> Recordings in the same panel instead of
+   three separate boxes. */
+    #list-header-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+    }
+
+#list-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+    }
+
+#list-back-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease;
+    }
+
+#list-back-btn:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+#list-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+/* "New recording" split trigger -- the + button in the Recordings header
+   opens a sideways flyout (Live Recording / Upload) instead of jumping
+   straight into the live-recording modal. */
+    #add-recording-wrap {
+        position: relative;
+    }
+
+#add-recording-flyout {
+        position: absolute;
+        top: 50%;
+        left: calc(100% + 8px);
+        min-width: 170px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+        z-index: 60;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-50%) translateX(-6px);
+        transition: opacity .12s ease, transform .12s ease, visibility 0s linear .12s;
+    }
+
+#add-recording-flyout.open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(-50%) translateX(0);
+        transition: opacity .12s ease, transform .12s ease;
+    }
+
+.flyout-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 10px;
+        cursor: pointer;
+        transition: background-color .12s ease, color .12s ease;
+    }
+
+.flyout-item:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+.flyout-item-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: inherit;
+    }
+
+/* Sort trigger, sitting in the "Subjects" heading row -- clicking it cycles
+   through sort orders directly, no dropdown. */
+    #sort-trigger-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+#sort-current-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        user-select: none;
+    }
+
+#sort-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        flex-shrink: 0;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease;
+    }
+
+#sort-trigger:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+#subjects-list,
+    #sessions-list,
+    #recordings-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0 10px 10px 10px;
+    }
+
+.subject-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background-color .15s ease;
+    }
+
+.subject-item:hover {
+        background-color: var(--bg-box-hover);
+    }
+
+.subject-item.selected {
+        background-color: var(--bg-box-hover);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+    }
+
+.subject-avatar {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background-color: var(--bg-chip);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+.subject-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+.subject-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+.subject-sub {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+    }
+
+/* ---------- Row ellipsis button (subject/session rows) + its side flyout,
+   opened via openRowFlyout() in project.js. Mirrors the add-recording
+   flyout's look, but built dynamically per-row and positioned with
+   getBoundingClientRect() since rows live inside a scrolling list. ---------- */
+
+.row-ellipsis-btn {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+    }
+
+.subject-item:hover .row-ellipsis-btn,
+    .session-item:hover .row-ellipsis-btn {
+        opacity: 1;
+    }
+
+.row-ellipsis-btn:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+.row-flyout {
+        position: fixed;
+        min-width: 170px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+        z-index: 200;
+    }
+
+.flyout-item--danger {
+        color: var(--accent-red);
+    }
+
+.flyout-item--danger:hover {
+        background-color: rgba(229, 72, 77, 0.12);
+        color: var(--accent-red);
+    }
+
+/* scrollbar tidy-up, matches dark-panel scroll feel elsewhere in the app */
+    #subjects-list::-webkit-scrollbar,
+    #sessions-list::-webkit-scrollbar,
+    #recordings-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+#subjects-list::-webkit-scrollbar-thumb,
+    #sessions-list::-webkit-scrollbar-thumb,
+    #recordings-list::-webkit-scrollbar-thumb {
+        background-color: var(--border-strong);
+        border-radius: 10px;
+    }
+
+/* ---------- Add-subject modal (same pattern as the existing Add Patient
+   modal, ported to this page's CSS variables so it follows the light/dark
+   toggle automatically) ---------- */
+
+    .subject-modal-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(10, 10, 10, 0.72);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .15s ease;
+        z-index: 100;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+.subject-modal-overlay.visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+body.theme-light .subject-modal-overlay {
+        background-color: rgba(255, 255, 255, 0.72);
+    }
+
+.subject-modal-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 320px;
+        max-width: calc(100vw - 48px);
+        padding: 22px 24px;
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+.subject-modal-panel input,
+.subject-modal-panel textarea {
+        user-select: text;
+        -webkit-user-select: text;
+    }
+
+.subject-modal-panel--recording {
+        position: relative;
+        width: 85vw;
+        height: 85vh;
+        max-width: 85vw;
+        max-height: 85vh;
+        background-color: var(--bg-box-hover);
+    }
+
+.recording-modal-back {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px 6px 10px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease;
+    }
+
+.recording-modal-back:hover {
+        background-color: var(--bg-chip);
+        color: var(--text-primary);
+    }
+
+.recording-modal-extract {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px 6px 10px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        color: #0d0d0d;
+        background: var(--accent-green, #3DBE6C);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color .15s ease, opacity .15s ease, transform .15s ease;
+    }
+
+.recording-modal-extract:hover {
+        background: #4dcf7e;
+    }
+
+.recording-modal-extract:active {
+        transform: scale(0.97);
+    }
+
+.recording-modal-extract:disabled {
+        opacity: 0.5;
+        cursor: default;
+        transform: none;
+    }
+
+.recording-modal-extract.is-extracting svg {
+        animation: recordingExtractSpin 0.9s linear infinite;
+    }
+
+@keyframes recordingExtractSpin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+/* ---------- Recording modal body ---------- */
+
+    #recording-modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+        height: 100%;
+        padding-top: 40px;
+        box-sizing: border-box;
+    }
+
+#recording-top-section {
+        display: flex;
+        flex-direction: row;
+        gap: 16px;
+        flex: 1;
+        min-height: 0;
+    }
+
+#recording-top-right {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background-color: var(--bg-inset);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+    }
+
+/* The graph side is split into two stacked containers: the main graph
+   placeholder (65% of the available height) and a second container below
+   it that fills the remaining 35%. */
+    #recording-top-left {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+.graph-placeholder-box {
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg-inset);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+    }
+
+.graph-placeholder-box--secondary {
+        flex: 1;
+    }
+
+/* Replaces the old primary graph placeholder: a live log of the takes
+   captured during this modal session, newest at the top. */
+.recording-log-box {
+        flex: 0 0 65%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background-color: var(--bg-inset);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+.recording-log-header {
+        flex: 0 0 auto;
+        padding: 12px 14px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+
+.recording-log-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        list-style: none;
+        margin: 0;
+        padding: 0 10px 10px;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 6px;
+    }
+
+.recording-log-empty {
+        display: none;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-align: center;
+        padding: 0 16px 16px;
+    }
+
+.recording-log-box.is-empty .recording-log-empty {
+        display: flex;
+    }
+
+.recording-log-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 12.5px;
+        animation: recordingLogItemIn 0.18s ease-out;
+        transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+.recording-log-item:hover {
+        transform: translateX(2px) scale(1.01);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+@keyframes recordingLogItemIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.recording-log-item-main {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+
+.recording-log-item-check {
+        flex: 0 0 auto;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--accent, #3fae5c);
+        color: #fff;
+    }
+
+.recording-log-item-check svg {
+        width: 10px;
+        height: 10px;
+    }
+
+.recording-log-item-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+.recording-log-item-right {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+.recording-log-item-time {
+        flex: 0 0 auto;
+        color: var(--text-secondary);
+    }
+
+.recording-log-item-delete {
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+    }
+
+.recording-log-item-delete svg {
+        width: 18px;
+        height: 18px;
+    }
+
+.recording-log-item:hover .recording-log-item-delete,
+.recording-log-item-delete:focus-visible {
+        opacity: 1;
+    }
+
+.recording-log-item-delete:hover {
+        background-color: var(--bg-inset);
+        color: #e5484d;
+    }
+
+.recording-log-item-delete:focus-visible {
+        outline: 2px solid var(--accent, #3fae5c);
+        outline-offset: 1px;
+    }
+
+.graph-placeholder-text {
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-align: center;
+        padding: 0 16px;
+    }
+
+.record-symbol {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg-chip);
+        color: var(--text-secondary);
+    }
+
+.start-recording-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: #111111;
+        background-color: #F9F9F9;
+        border: none;
+        border-radius: 20px;
+        padding: 9px 18px;
+        cursor: pointer;
+        transition: opacity .15s ease;
+    }
+
+.start-recording-btn:hover {
+        opacity: .85;
+    }
+
+body.theme-light .start-recording-btn {
+        color: #FFFFFF;
+        background-color: #171717;
+    }
+
+.record-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background-color: var(--accent-red);
+        flex-shrink: 0;
+    }
+
+.task-status-panel {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        width: 100%;
+        height: 100%;
+        padding: 0 20px;
+        box-sizing: border-box;
+    }
+
+.task-controls-topleft {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+        z-index: 3;
+    }
+
+.task-controls-topright {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 3;
+    }
+
+.task-status-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+.task-type-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 3px;
+        width: fit-content;
+        margin: 0 auto;
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+    }
+
+.task-type-option {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: 18px;
+        padding: 7px 16px;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease, opacity .15s ease;
+    }
+
+.task-type-option:hover:not(:disabled):not(.is-active) {
+        color: var(--text-primary);
+    }
+
+.task-type-option:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+    }
+
+.task-type-option.is-active {
+        color: #111111;
+        background-color: #F9F9F9;
+    }
+
+body.theme-light .task-type-option.is-active {
+        color: #FFFFFF;
+        background-color: #171717;
+    }
+
+.task-duration.is-disabled {
+        opacity: .4;
+    }
+
+/* ---------- Countdown & done circles: same size/position as the record button ---------- */
+
+.task-record-slot {
+        position: relative;
+        width: 64px;
+        height: 64px;
+        flex-shrink: 0;
+    }
+
+.task-countdown-circle {
+        display: none;
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1.5px solid var(--border);
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg-inset);
+    }
+
+.task-countdown-circle.is-active {
+        display: flex;
+    }
+
+.task-countdown-number {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        animation: task-countdown-pop .3s ease;
+    }
+
+@keyframes task-countdown-pop {
+        0% { opacity: 0; transform: scale(.7); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
+/* Wrapper that centers the done-tick + "Recording complete" label together
+   as a unit within the whole panel (.task-status-panel), with the label
+   sitting just below the tick. */
+    .task-done-block {
+        position: absolute;
+        inset: auto;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+.task-done-circle {
+        display: none;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border);
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg-inset);
+        border-color: var(--text-primary);
+        color: var(--text-primary);
+        animation: task-done-pop .3s ease;
+    }
+
+.task-done-circle.is-active {
+        display: flex;
+    }
+
+@keyframes task-done-pop {
+        0% { opacity: 0; transform: scale(.7); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
+.task-countdown-label,
+    .task-done-label {
+        display: none;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-tertiary);
+    }
+
+.task-countdown-label.is-active,
+    .task-done-label.is-active {
+        display: block;
+    }
+
+.task-record-btn {
+        width: 64px;
+        height: 64px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--accent-red);
+        color: #FFFFFF;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.18);
+        transition: opacity .15s ease;
+    }
+
+.task-record-btn:hover {
+        opacity: .9;
+    }
+
+.task-record-btn.is-recording {
+        display: none;
+    }
+
+@keyframes task-record-pulse {
+        0% { box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.18), 0 0 0 0 rgba(229, 72, 77, 0.35); }
+        70% { box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.18), 0 0 0 12px rgba(229, 72, 77, 0); }
+        100% { box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.18), 0 0 0 0 rgba(229, 72, 77, 0); }
+    }
+
+/* ---------- Recording status line: dot + label + elapsed timer ---------- */
+
+/* Fixed-size block so the panel's vertical centering always places this
+   group in the same spot, regardless of which internal state (idle,
+   countdown, recording, done) is showing. */
+    .task-record-block {
+        position: relative;
+        width: 100%;
+        height: 300px;
+        flex-shrink: 0;
+        overflow: visible;
+    }
+
+    .task-prompt {
+        position: absolute;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        transition: opacity .1s ease;
+    }
+
+    .task-prompt.is-hidden {
+        display: none;
+    }
+
+/* Anchored at a fixed offset from the prompt (within the fixed-size block
+   above), so this group can grow/shrink/reflow internally without ever
+   moving the prompt, and without moving the block as a whole either. */
+    .task-recording-stage {
+        position: absolute;
+        top: 166px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        width: max-content;
+        max-width: 100%;
+    }
+
+.recording-status-line {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+.recording-status-line.is-active {
+        display: flex;
+    }
+
+.recording-dot {
+        width: 8px;
+        height: 8px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background-color: var(--accent-red);
+        animation: task-record-dot-pulse 1.2s ease-in-out infinite;
+    }
+
+@keyframes task-record-dot-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .35; }
+    }
+
+.recording-status-text {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+
+.recording-status-timer {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-tertiary);
+    }
+
+/* ---------- Recording meter: dotted level row + progress bar ---------- */
+
+    .recording-meter {
+        width: 220px;
+        max-width: 100%;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        opacity: 0;
+        transition: opacity .15s ease;
+        pointer-events: none;
+    }
+
+.recording-meter.is-active {
+        opacity: 1;
+    }
+
+.recording-dotted-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        height: 32px;
+        width: 100%;
+    }
+
+.recording-dot-tick {
+        --bar-h: .3;
+        width: 2px;
+        height: calc(6px + var(--bar-h) * 26px);
+        border-radius: 1px;
+        flex-shrink: 0;
+        background-color: var(--text-tertiary);
+        opacity: .35;
+    }
+
+.recording-dot-tick.is-filled {
+        background-color: var(--accent-red);
+        opacity: 1;
+    }
+
+.recording-progress-track {
+        width: 100%;
+        height: 5px;
+        border-radius: 4px;
+        background-color: var(--bg-chip);
+        overflow: hidden;
+    }
+
+.recording-progress-fill {
+        width: 0%;
+        height: 100%;
+        border-radius: 4px;
+        background-color: var(--accent-red);
+    }
+
+.task-prompt {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
+
+.task-prompt-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+    }
+
+.task-prompt-sound {
+        font-size: 40px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+.task-duration {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+
+.task-duration-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+    }
+
+.task-duration-stepper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px;
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+    }
+
+.task-duration-btn {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        border: none;
+        background-color: transparent;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: background-color .15s ease, opacity .15s ease;
+    }
+
+.task-duration-btn:hover:not(:disabled) {
+        background-color: var(--bg-box-hover);
+    }
+
+.task-duration-btn:disabled {
+        opacity: .35;
+        cursor: not-allowed;
+    }
+
+.task-duration-value {
+        min-width: 32px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-align: center;
+    }
+
+.task-status-list {
+        width: 100%;
+        max-width: 220px;
+        margin-top: 8px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+.task-status-row {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        font-size: 12px;
+    }
+
+.task-status-label {
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+.task-status-value {
+        font-weight: 500;
+        color: var(--text-tertiary);
+    }
+
+.subject-modal-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+.subject-modal-message {
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.5;
+        color: var(--text-secondary);
+    }
+
+.subject-modal-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+.subject-modal-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+.subject-modal-field label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
+    }
+
+.subject-modal-field input,
+    .subject-modal-field select {
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background-color: var(--bg-inset);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        box-sizing: border-box;
+        outline: none;
+        transition: border-color .15s ease;
+    }
+
+.subject-modal-field input:focus,
+    .subject-modal-field select:focus {
+        border-color: var(--border-strong);
+    }
+
+.subject-modal-field input::placeholder {
+        color: var(--text-tertiary);
+    }
+
+/* Sex dropdown: opt in to the browser's customizable-select popup
+   (Chrome 133+) so the open dropdown list can be restyled -- native
+   <select> popups aren't otherwise reachable with CSS. Browsers
+   without support just fall back to the default OS-drawn popup. */
+    #subjectSexInput {
+        appearance: base-select;
+    }
+
+#subjectSexInput::picker(select) {
+        appearance: base-select;
+        border: none;
+        border-radius: 10px;
+        padding: 4px;
+        background-color: var(--bg-inset);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+#subjectSexInput option {
+        border-radius: 6px;
+        padding: 7px 10px;
+        color: var(--text-primary);
+    }
+
+#subjectSexInput option:hover,
+    #subjectSexInput option:focus {
+        background-color: var(--bg-chip);
+    }
+
+/* Age uses type="number" for numeric input/keyboard, but the
+   increment/decrement spinner arrows are hidden -- steppers aren't a
+   natural fit for entering someone's age. */
+    .subject-modal-field input.no-spinner::-webkit-outer-spin-button,
+    .subject-modal-field input.no-spinner::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+.subject-modal-field input.no-spinner[type="number"] {
+        -moz-appearance: textfield;
+    }
+
+.subject-modal-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 32px;
+    }
+
+.subject-modal-cancel {
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 9px 16px;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+
+.subject-modal-cancel:hover {
+        background-color: var(--bg-chip);
+    }
+
+.subject-modal-submit {
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: #111111;
+        background-color: #F9F9F9;
+        border: none;
+        border-radius: 10px;
+        padding: 9px 16px;
+        cursor: pointer;
+        transition: opacity .15s ease;
+    }
+
+body.theme-light .subject-modal-submit {
+        color: #FFFFFF;
+        background-color: #171717;
+    }
+
+.subject-modal-submit:hover {
+        opacity: .85;
+    }
+
+.subject-modal-submit--danger {
+        color: #FFFFFF;
+        background-color: var(--accent-red);
+    }
+
+body.theme-light .subject-modal-submit--danger {
+        color: #FFFFFF;
+        background-color: var(--accent-red);
+    }
+
+/* ==========================================================================
+   Post-recording quality check overlay
+   Covers the whole recording panel between a finished take and the
+   "Recording complete" confirmation. Stage 1 (loading) simulates a
+   chain-of-custody + signal-quality check; stage 2 (review) surfaces a
+   placeholder rating/environment result and lets the user keep or discard
+   the take. Toggle stages via .stage-loading / .stage-review on
+   #qualityCheckOverlay; toggle visibility via .is-active.
+   ========================================================================== */
+
+    .quality-check-overlay {
+        display: none;
+        position: absolute;
+        inset: 0;
+        z-index: 30;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(10, 10, 10, 0.88);
+        backdrop-filter: blur(6px);
+        border-radius: inherit;
+    }
+
+.quality-check-overlay.is-active {
+        display: flex;
+    }
+
+.quality-check-loading,
+    .quality-review-card {
+        display: none;
+    }
+
+.quality-check-overlay.stage-loading .quality-check-loading {
+        display: flex;
+    }
+
+.quality-check-overlay.stage-review .quality-review-card {
+        display: flex;
+    }
+
+/* ---------- Stage 1: checking ---------- */
+
+    .quality-check-loading {
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+        max-width: 320px;
+        text-align: center;
+        padding: 0 24px;
+    }
+
+.quality-check-spinner {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 2.5px solid var(--border);
+        border-top-color: var(--text-secondary);
+        animation: quality-check-spin .9s linear infinite;
+    }
+
+@keyframes quality-check-spin {
+        to { transform: rotate(360deg); }
+    }
+
+.quality-check-loading-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+.quality-check-loading-sub {
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.5;
+        color: var(--text-secondary);
+    }
+
+/* ---------- Stage 2: review ---------- */
+
+    .quality-review-card {
+        position: relative;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        width: 400px;
+        max-width: calc(100% - 48px);
+        max-height: calc(100% - 48px);
+        overflow-y: auto;
+        padding: 26px 26px 24px;
+        background-color: var(--bg-box-hover);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        box-sizing: border-box;
+    }
+
+.quality-review-badge {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        color: var(--accent-red);
+        background-color: rgba(229, 72, 77, 0.16);
+        border: 1px solid rgba(229, 72, 77, 0.35);
+        border-radius: 50%;
+    }
+
+.quality-review-heading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        font-size: 19px;
+        font-weight: 700;
+        color: var(--text-primary);
+        text-align: center;
+    }
+
+.quality-review-dash {
+        color: var(--text-tertiary);
+        font-weight: 500;
+    }
+
+.quality-review-stars {
+        display: inline-flex;
+        gap: 1px;
+        font-size: 18px;
+        line-height: 1;
+        letter-spacing: 1px;
+    }
+
+.quality-review-stars .star-filled {
+        color: var(--text-primary);
+    }
+
+.quality-review-stars .star-empty {
+        color: var(--text-tertiary);
+    }
+
+.quality-review-subtitle {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-align: center;
+    }
+
+.quality-review-env-box {
+        width: 100%;
+        padding: 14px 16px;
+        background-color: var(--bg-box-inner);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-sizing: border-box;
+    }
+
+.quality-review-env-title {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+.quality-review-env-desc {
+        margin-top: 4px;
+        font-size: 12.5px;
+        font-weight: 500;
+        line-height: 1.5;
+        color: var(--text-secondary);
+    }
+
+.quality-review-warning {
+        margin: 0;
+        font-size: 12.5px;
+        font-weight: 500;
+        line-height: 1.55;
+        color: var(--text-secondary);
+        text-align: left;
+    }
+
+.quality-review-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        margin-top: 4px;
+    }
+
+.quality-review-btn {
+        flex: 1;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        border: none;
+        border-radius: 11px;
+        padding: 11px 16px;
+        cursor: pointer;
+        transition: opacity .15s ease, background-color .15s ease;
+    }
+
+.quality-review-btn--rerecord {
+        color: var(--text-primary);
+        background-color: var(--bg-chip);
+        border: 1px solid var(--border);
+    }
+
+.quality-review-btn--rerecord:hover {
+        background-color: var(--bg-inset);
+    }
+
+.quality-review-btn--complete {
+        color: #111111;
+        background-color: var(--accent-red);
+    }
+
+.quality-review-btn--complete:hover {
+        opacity: .88;
+    }

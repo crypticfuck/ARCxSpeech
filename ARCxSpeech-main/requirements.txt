@@ -1,0 +1,16 @@
+librosa
+numpy
+scipy
+praat-parselmouth
+sounddevice
+soundfile
+matplotlib
+pandas
+openpyxl
+pyserial
+scikit-learn
+fastapi
+uvicorn
+pywebview
+python-multipart
+psutil

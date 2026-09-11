@@ -1,0 +1,129 @@
+/* ==========================================================================
+   Session + Recording item styling
+   These render inside the recording-select dropdown's drill-down list (see
+   subjects.css), not a separate box -- Subjects -> Sessions -> Recordings
+   share one panel, one level at a time.
+   ========================================================================== */
+
+/* ---------- Session items ---------- */
+
+.session-item {
+        padding: 9px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background-color .15s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+.session-item:hover {
+        background-color: var(--bg-box-hover);
+    }
+
+.session-item.selected {
+        background-color: var(--bg-box-hover);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+    }
+
+.session-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+.session-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+.session-date {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+    }
+
+/* ---------- Recording items ---------- */
+
+.recording-row {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+.recording-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background-color .15s ease;
+        flex: 1;
+        min-width: 0;
+    }
+
+.recording-item:hover {
+        background-color: var(--bg-box-hover);
+    }
+
+.recording-item.selected {
+        background-color: var(--bg-box-hover);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+    }
+
+.recording-icon {
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background-color: var(--bg-chip);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+    }
+
+.recording-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+.recording-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+.recording-time {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+    }
+
+.recording-chip {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        background-color: var(--bg-chip);
+        border-radius: 20px;
+        padding: 3px 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+.recording-chip.custom {
+        color: #C9A24B;
+        background-color: rgba(201, 162, 75, 0.12);
+    }
+
+.recording-chip.uploaded {
+        color: #5B93F0;
+        background-color: rgba(91, 147, 240, 0.12);
+    }
