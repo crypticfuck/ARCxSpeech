@@ -21,8 +21,15 @@ from app.insight_generator import generate_domain_insight
 Z_SCORE_THRESHOLD = 2.0
 CLINICAL_VARIANCE_FLOOR = 2.0  # score points; scores are rounded to 0.1 so two equal visits must not give Z = 1e8
 MIN_HISTORY_FOR_ZSCORE = 3     # history points (excluding current) needed for a usable std
-MIN_VISITS_FOR_ZSCORE = 3  # Was 2 (need 3+ for reliable std)
+# Total visits the engine needs before it runs = history + the current
+# one. Derived rather than hand-set so this gate and the Z-score gate in
+# _compute_trajectory can't drift apart again.
+MIN_VISITS_FOR_ZSCORE = MIN_HISTORY_FOR_ZSCORE + 1
 
+# Same set speech_motor_state.py / trajectory_mapper.py use. A domain
+# scored on a subset of its components (e.g. a single-take date has no
+# SD, so no pitch_variability) is still a real score, not a skipped visit.
+EVALUATED_STATUSES = {"Evaluated", "Evaluated (Partial)"}
 
 # =====================================================================
 # Helper: Data Extraction
@@ -37,13 +44,13 @@ def _extract_domain_history(
     history = []
     
     for assessment in historical_assessments:
-        motor_states = assessment.get("speech_motor_state", {})
-        domain_data = motor_states.get(domain_key, {})
+        motor_states = assessment.get("speech_motor_state") or {}
+        domain_data = motor_states.get(domain_key) or {}
         
         if domain_data:
             score = domain_data.get("score")
             # Only append if it's a valid, evaluated number
-            if isinstance(score, (int, float)) and domain_data.get("status") == "Evaluated":
+            if isinstance(score, (int, float)) and domain_data.get("status") in EVALUATED_STATUSES:
                 history.append(float(score))
                 
     return history
@@ -171,15 +178,17 @@ def _determine_global_status(
     if any("Moderate Improvement" in f for f in flags):
         return "Possible Improvement"
     
+    if not flags:
+        # Nothing evaluable on the current visit -- say so instead of
+        # letting all([]) == True fall through to "Stable".
+        return "Inconclusive (Quality Issues)" if artifact_warning else "No Evaluable Domains"
+
     if artifact_warning:
         return "Inconclusive (Quality Issues)"
-    
-    if all("Stable" in f or f == "" for f in flags):
+
+    if all("Stable" in f for f in flags):
         return "Stable"
-    
-    if all(f in ["Baseline Compiling", ""] for f in flags):
-        return "Baseline Compiling"
-    
+
     return "Analyzed"
 
 
@@ -240,10 +249,10 @@ def analyze_patient_trajectory(assessments: List[Dict[str, Any]]) -> Dict[str, A
 
     # 3. Modular domain processing loop
     for domain in domains:
-        current_data = current_motor_states.get(domain, {})
+        current_data = current_motor_states.get(domain) or {}
         
         # Skip if the task wasn't evaluated this visit
-        if current_data.get("status") != "Evaluated":
+        if current_data.get("status") not in EVALUATED_STATUSES:
             continue
             
         current_score = current_data.get("score")
@@ -280,7 +289,10 @@ def analyze_patient_trajectory(assessments: List[Dict[str, Any]]) -> Dict[str, A
             # Generate clinical insight for declines only
             if "Decline" in trajectory["flag"]:
                 # Safely pull the component dicts, defaulting to empty dicts if missing
-                baseline_comps = historical_assessments[0].get("speech_motor_state", {}).get(domain, {}).get("components", {})
+                baseline_comps = (
+                    ((historical_assessments[0].get("speech_motor_state") or {}).get(domain) or {})
+                    .get("components", {})
+                )
                 current_comps = current_data.get("components", {})
                 
                 insight_string = generate_domain_insight(

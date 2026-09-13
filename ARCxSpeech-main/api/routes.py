@@ -16,16 +16,15 @@ from app.verifier import verify_audio
 from app.recording_quality import (
     analyze_recording_quality,
     classify_recording_quality,
-    aggregate_recording_quality_metrics,
 )
 from app import subject_store, recording_store, project_store
-from app.project_paths import project_dir, subjects_root, recording_dir, recording_stem, date_key
+from app.project_paths import project_dir, subjects_root, recording_dir, recording_stem, date_key, is_date_key
 from app.clinical_history import (
     build_assessment_record,
     build_trial_scores,
     get_patient_assessment_history,
 )
-from app.baseline import compute_patient_baseline, evaluate_against_baseline
+from app.baseline import compute_patient_baseline, evaluate_against_baseline, get_valid_patient_history
 from app.change_detector import analyze_patient_trajectory
 from app.motor_fatigue_curve import analyze_fatigue_curve
 
@@ -183,14 +182,17 @@ def get_subjects(project_id: str):
 @router.post("/api/projects/{project_id}/subjects")
 def add_subject(project_id: str, subject: Subject):
     _require_project(project_id)
-    created = subject_store.add_subject(
-        project_id,
-        name=subject.name,
-        subject_id=subject.id,
-        sex=subject.sex,
-        age=subject.age,
-        group=subject.group,
-    )
+    try:
+        created = subject_store.add_subject(
+            project_id,
+            name=subject.name,
+            subject_id=subject.id,
+            sex=subject.sex,
+            age=subject.age,
+            group=subject.group,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     project_store.touch_project(project_id)
     return created
 
@@ -507,14 +509,21 @@ def upload_recordings(
     subject_id: str,
     task: str = Form(...),
     files: List[UploadFile] = File(...),
+    # Optional "YYYY-MM-DD" the recordings were actually made on. Since a
+    # calendar date is now the longitudinal "point in time", stamping
+    # historical uploads with today's date would collapse them all into
+    # one bogus visit. Defaults to today when omitted.
+    date: Optional[str] = Form(None),
 ):
     _require_project(project_id)
     if not subject_store.get_subject(project_id, subject_id):
         raise HTTPException(status_code=404, detail="Subject not found.")
     if len(files) < 1:
         raise HTTPException(status_code=400, detail="At least 1 .wav file is required.")
+    if date and not is_date_key(date):
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD.")
 
-    date = date_key()
+    date = date or date_key()
     created = []
     errors = []
     next_serial = len(recording_store.get_recordings_for_subject_date_task(project_id, subject_id, date, task)) + 1
@@ -695,8 +704,13 @@ def get_recording_ddk_contour(project_id: str, subject_id: str, recording_id: st
 @router.delete("/api/projects/{project_id}/subjects/{subject_id}/recordings/{recording_id}")
 def delete_recording(project_id: str, subject_id: str, recording_id: str):
     _require_project(project_id)
+    # Check ownership BEFORE deleting -- otherwise a recording_id under
+    # the wrong subject_id was already removed by the time we 404'd.
+    existing = recording_store.get_recording(project_id, recording_id)
+    if not existing or existing.get("subject_id") != subject_id:
+        raise HTTPException(status_code=404, detail="Recording not found.")
     deleted = recording_store.delete_recording(project_id, recording_id)
-    if not deleted or deleted.get("subject_id") != subject_id:
+    if not deleted:
         raise HTTPException(status_code=404, detail="Recording not found.")
 
     candidate_paths = []
@@ -731,6 +745,8 @@ def get_date_motor_state(project_id: str, subject_id: str, date: str):
     exist; 422 if the subject has no sex on file, since the scoring
     model requires one."""
     _require_project(project_id)
+    if not is_date_key(date):
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD.")
     subject = subject_store.get_subject(project_id, subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found.")
@@ -742,33 +758,43 @@ def get_date_motor_state(project_id: str, subject_id: str, date: str):
             detail="Subject sex must be set to 'Male' or 'Female' before motor-state scoring is available.",
         )
 
+    if not recording_store.get_recordings_for_subject_date(project_id, subject_id, date):
+        raise HTTPException(status_code=404, detail="No recordings on this date.")
+
     return build_assessment_record(project_id, subject_id, date, sex)
 
 
 @router.get("/api/projects/{project_id}/subjects/{subject_id}/insights")
 def get_subject_insights(project_id: str, subject_id: str):
-    """Longitudinal clinical insights for a subject: rolling baseline,
-    the latest date group's deviation from that baseline, and the full
-    change-detector trajectory (deltas/Z-scores/alerts) across their
-    quality-gated date-group history within this project.
+    """Longitudinal clinical insights for a subject.
 
-    Date groups that failed the quality gate (low recording quality or
-    detected clipping) are excluded from history the same way the
-    original assessment_store-backed engine excluded them -- see
-    baseline.get_valid_patient_history.
+    Two views of the same date-group history:
+      * `history`       -- every scoreable date group (NOT quality-gated).
+                           Fed to the change detector, which applies its
+                           own artifact warning when the current date has
+                           poor quality (see change_detector._detect_quality_artifacts).
+      * `valid_history` -- quality-gated (see baseline.get_valid_patient_history).
+                           Used for BOTH the baseline and the "latest"
+                           record scored against it, so the two can never
+                           refer to different dates.
     """
     _require_project(project_id)
     if not subject_store.get_subject(project_id, subject_id):
         raise HTTPException(status_code=404, detail="Subject not found.")
 
     history = get_patient_assessment_history(project_id, subject_id)
+    valid_history = get_valid_patient_history(project_id, subject_id, assessments=history)
 
-    baseline = compute_patient_baseline(project_id, subject_id, exclude_latest=True)
+    baseline = compute_patient_baseline(
+        project_id, subject_id, exclude_latest=True, history=valid_history
+    )
     trajectory = analyze_patient_trajectory(history)
 
     deviation = None
-    if history and baseline.get("status") == "active":
-        latest = history[-1]
+    deviation_date = None
+    if valid_history and baseline.get("status") == "active":
+        latest = valid_history[-1]
+        deviation_date = latest.get("date")
         deviation = evaluate_against_baseline(
             baseline,
             latest.get("vowel_mean", {}),
@@ -778,7 +804,9 @@ def get_subject_insights(project_id: str, subject_id: str):
     return {
         "subject_id": subject_id,
         "dates_analyzed": len(history),
+        "dates_passing_quality_gate": len(valid_history),
         "baseline": baseline,
+        "deviation_date": deviation_date,
         "deviation_from_baseline": deviation,
         "trajectory": trajectory,
     }
@@ -797,6 +825,8 @@ def get_date_fatigue(project_id: str, subject_id: str, date: str, task: str):
     clinical_history.py for the full explanation.
     """
     _require_project(project_id)
+    if not is_date_key(date):
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD.")
     subject = subject_store.get_subject(project_id, subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found.")

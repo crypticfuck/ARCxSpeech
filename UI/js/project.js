@@ -218,9 +218,10 @@ const api = {
         method: "POST",
         body: JSON.stringify({ task, duration, prepare_token: prepareToken || null }),
     }),
-    uploadRecordings: (subjectId, task, files) => {
+    uploadRecordings: (subjectId, task, files, date) => {
         const formData = new FormData();
         formData.append("task", task);
+        if (date) formData.append("date", date); // "YYYY-MM-DD"; server defaults to today
         Array.from(files).forEach(file => formData.append("files", file));
         return apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/recordings/upload`, {
             method: "POST",

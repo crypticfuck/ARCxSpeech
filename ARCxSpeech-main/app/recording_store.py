@@ -34,35 +34,6 @@ def _atomic_write_json(filepath, data):
         raise
 
 
-def _old_atomic_write_json(filepath, data):
-    """(superseded)
-
-    subject_store.py's copy for the full explanation."""
-
-    directory = os.path.dirname(filepath) or "."
-
-    fd, tmp_path = tempfile.mkstemp(
-        dir=directory,
-        prefix=".tmp_",
-        suffix=".json"
-    )
-
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-
-        os.replace(tmp_path, filepath)
-
-    except Exception:
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
-        raise
-
-
 def load_recordings(project_id):
     recordings_file = _recordings_file(project_id)
 
@@ -82,8 +53,11 @@ def load_recordings(project_id):
         ) from e
 
 
-def get_recordings_for_subject(project_id, subject_id):
-    recordings = load_recordings(project_id)
+def get_recordings_for_subject(project_id, subject_id, recordings=None):
+    """`recordings` lets a caller that already loaded this project's
+    rows reuse them instead of re-reading recordings.json."""
+    if recordings is None:
+        recordings = load_recordings(project_id)
     return [r for r in recordings if r.get("subject_id") == subject_id]
 
 
@@ -251,18 +225,43 @@ def _compute_sd(feature_dicts: List[dict]) -> dict:
             result[key] = round(variance ** 0.5, 3)
     return result
 
+QUALITY_FLAG_KEYS = ("Clipping Detected", "Silence Detected")
 
-def compute_date_summary(project_id, subject_id, date):
+
+def _compute_quality_mean(quality_dicts: List[dict]) -> dict:
+    """Numeric quality metrics are averaged; boolean flags are OR'd --
+    a date group is flagged if ANY recording in it clipped / went
+    silent (same rule recording_quality.aggregate_recording_quality_metrics
+    uses). _compute_mean alone drops bools via _is_number, which left
+    every downstream "Clipping Detected" gate (baseline.py,
+    change_detector.py, trajectory_mapper.py, speech_motor_state.py)
+    permanently switched off."""
+    result = _compute_mean(quality_dicts)
+    for key in QUALITY_FLAG_KEYS:
+        flags = [d.get(key) for d in quality_dicts if isinstance(d.get(key), bool)]
+        if flags:
+            result[key] = any(flags)
+    return result
+
+def compute_date_summary(project_id, subject_id, date, recordings=None):
     """Builds an Assessment-shaped summary for one subject's recordings
     on one calendar day ON READ, from whatever recordings currently
     fall on that date in THIS project. Add a recording tomorrow and
     the next call to this function reflects it automatically. This is
     the direct replacement for the old per-session summary -- a date
     group is now the "one point in time" unit the clinical history
-    adapter builds off of."""
+    adapter builds off of.
 
-    vowel_recs = get_recordings_for_subject_date_task(project_id, subject_id, date, "Sustained Vowel")
-    ddk_recs = get_recordings_for_subject_date_task(project_id, subject_id, date, "DDK")
+    `recordings` (optional): an already-loaded list of this project's
+    rows, so a caller iterating many dates reads recordings.json once
+    instead of four times per date."""
+
+    day_recs = [
+        r for r in get_recordings_for_subject(project_id, subject_id, recordings)
+        if r.get("date") == date
+    ]
+    vowel_recs = [r for r in day_recs if r.get("task") == "Sustained Vowel"]
+    ddk_recs = [r for r in day_recs if r.get("task") == "DDK"]
 
     def _tag_trial(r):
         return {**r["features"], "_created_at": r.get("created_at"), "_recording_id": r.get("recording_id"), "_date": r.get("date")}
@@ -298,7 +297,7 @@ def compute_date_summary(project_id, subject_id, date):
         "ddk_recordings": [r["patient_filepath"] for r in ddk_recs],
         "ambient_mean": _compute_mean(ambient_metrics_all),
         "ambient_sd": _compute_sd(ambient_metrics_all),
-        "recording_quality_mean": _compute_mean(quality_metrics_all),
+        "recording_quality_mean": _compute_quality_mean(quality_metrics_all),
         "recording_quality_sd": _compute_sd(quality_metrics_all),
         "recording_quality_score_mean": quality_score_mean,
     }

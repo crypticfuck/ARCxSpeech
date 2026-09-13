@@ -142,6 +142,9 @@ def subject_dir(project_id: str, subject_id: str) -> str:
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
+def is_date_key(value) -> bool:
+    """True if `value` is a well-formed "YYYY-MM-DD" date key."""
+    return bool(_DATE_RE.match(value or ""))
 
 def date_key(when: "datetime.datetime" = None) -> str:
     """The "YYYY-MM-DD" string used both as the date-folder name and

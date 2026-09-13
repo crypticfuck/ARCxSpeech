@@ -86,6 +86,11 @@ def add_subject(project_id, name, subject_id=None, sex="", age="", group=""):
 
     if not subject_id:
         subject_id = _generate_subject_id(subjects)
+    else:
+        if subject_id in (".", "..") or "/" in subject_id or "\\" in subject_id:
+            raise ValueError(f"Invalid subject id {subject_id!r}: must not contain path separators.")
+        if any(s.get("id") == subject_id for s in subjects):
+            raise ValueError(f'A subject with id "{subject_id}" already exists in this project.')
 
     subject = {
         "id": subject_id,

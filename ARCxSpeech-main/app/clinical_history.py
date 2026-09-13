@@ -63,7 +63,13 @@ def _score_to_star_rating(score: Optional[float]) -> str:
     return "★☆☆☆☆"
 
 
-def build_assessment_record(project_id: str, subject_id: str, date: str, sex: str) -> Dict[str, Any]:
+def build_assessment_record(
+    project_id: str,
+    subject_id: str,
+    date: str,
+    sex: str,
+    summary: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Builds one assessment-shaped record for a single date group: the
     input shape change_detector.py, trajectory_mapper.py, and
     baseline.py all read (patient_id, timestamp, vowel_mean/ddk_mean,
@@ -77,7 +83,8 @@ def build_assessment_record(project_id: str, subject_id: str, date: str, sex: st
     normalization. Callers should skip subjects without a recorded sex
     rather than pass a guess.
     """
-    summary = recording_store.compute_date_summary(project_id, subject_id, date)
+    if summary is None:
+        summary = recording_store.compute_date_summary(project_id, subject_id, date)
 
     rq_mean = summary.get("recording_quality_mean") or {}
     rating = _score_to_star_rating(summary.get("recording_quality_score_mean"))
@@ -142,9 +149,9 @@ def build_trial_scores(project_id: str, subject_id: str, date: str, task: str, s
     recordings.sort(key=lambda r: r.get("created_at") or "")
 
     trials = []
+    is_ddk = task == "DDK"
     for idx, recording in enumerate(recordings, start=1):
         features = recording.get("features") or {}
-        is_ddk = "DDK Repetition Rate" in features or "DDK Regularity" in features
 
         motor_state = compute_speech_motor_state(
             sex=sex,
@@ -197,13 +204,14 @@ def get_patient_assessment_history(project_id: str, subject_id: str) -> List[Dic
 
     records = []
     for date in dates:
-        summary = recording_store.compute_date_summary(project_id, subject_id, date)
+        # One recordings.json read for the whole history, not ~4 per date.
+        summary = recording_store.compute_date_summary(project_id, subject_id, date, recordings=recordings)
         if not summary.get("vowel_mean") and not summary.get("ddk_mean"):
             # No extracted-feature recordings yet on this date (e.g.
             # only raw captures pending "Extract Features") -- nothing
             # for the engine to score, so skip rather than emit an
             # all-null assessment.
             continue
-        records.append(build_assessment_record(project_id, subject_id, date, sex))
+        records.append(build_assessment_record(project_id, subject_id, date, sex, summary=summary))
 
     return records

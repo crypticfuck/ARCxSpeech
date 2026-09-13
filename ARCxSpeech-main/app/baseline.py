@@ -68,7 +68,11 @@ def _quality_rating_to_int(rating: str) -> int:
     return QUALITY_RANK.get(rating, 0)
 
 
-def get_valid_patient_history(project_id: str, patient_id: str) -> List[Dict[str, Any]]:
+def get_valid_patient_history(
+    project_id: str,
+    patient_id: str,
+    assessments: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
     """
     Retrieve high-quality, valid past sessions for a patient.
 
@@ -85,7 +89,8 @@ def get_valid_patient_history(project_id: str, patient_id: str) -> List[Dict[str
     # Already subject-scoped and chronologically sorted by
     # get_patient_assessment_history(), so no per-record patient_id
     # filter or extra sort is needed here.
-    assessments = get_patient_assessment_history(project_id, patient_id)
+    if assessments is None:
+        assessments = get_patient_assessment_history(project_id, patient_id)
     valid_records = []
 
     min_quality_int = _quality_rating_to_int(MIN_QUALITY_RATING)
@@ -216,7 +221,13 @@ def _compute_unweighted_statistics(
 # =====================================================================
 
 
-def compute_patient_baseline(project_id: str, patient_id: str, use_weighting: bool = True, exclude_latest: bool = False) -> Dict[str, Any]:
+def compute_patient_baseline(
+    project_id: str,
+    patient_id: str,
+    use_weighting: bool = True,
+    exclude_latest: bool = False,
+    history: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     """
     Calculate patient-specific baseline statistics using adaptive rolling window.
 
@@ -234,7 +245,9 @@ def compute_patient_baseline(project_id: str, patient_id: str, use_weighting: bo
         Baseline statistics with mean, std, and 95% CI for each metric.
         Returns status='insufficient_data' if fewer than MIN_BASELINE_SESSIONS.
     """
-    history = get_valid_patient_history(project_id, patient_id)
+    if history is None:
+        history = get_valid_patient_history(project_id, patient_id)
+    history = list(history)
     if exclude_latest and history:
         history = history[:-1]  # don't score a session against a baseline that contains it
     n_sessions = len(history)

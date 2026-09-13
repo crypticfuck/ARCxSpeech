@@ -506,32 +506,32 @@ def compute_speech_motor_state(
     vowel_empty = not bool(vowel_mean)
     ddk_empty = not bool(ddk_mean)
 
-    stability = _evaluate_stability(vowel_mean, vowel_sd, rq_classification) if not vowel_empty else None
-    phonatory_control = _evaluate_phonatory_control(vowel_mean, vowel_sd, sex, rq_classification) if not vowel_empty else None
+    def _not_performed(task_label: str) -> Dict[str, Any]:
+        # Every domain always comes back as a dict with a "status" --
+        # never a bare None -- so downstream readers (change_detector,
+        # trajectory_mapper) can .get() on it unconditionally.
+        return {
+            "status": "Not Performed",
+            "score": None,
+            "confidence": None,
+            "components": {},
+            "evidence": {
+                "strengths": [],
+                "impairment_drivers": [],
+                "warnings": [f"{task_label} task not performed."],
+            },
+        }
+
+    if vowel_empty:
+        stability = _not_performed("Sustained vowel")
+        phonatory_control = _not_performed("Sustained vowel")
+    else:
+        stability = _evaluate_stability(vowel_mean, vowel_sd, rq_classification)
+        phonatory_control = _evaluate_phonatory_control(vowel_mean, vowel_sd, sex, rq_classification)
 
     if ddk_empty:
-        timing = {
-            "status": "Not Performed",
-            "score": None,
-            "confidence": None,
-            "components": {},
-            "evidence": {
-                "strengths": [],
-                "impairment_drivers": [],
-                "warnings": ["DDK task not performed."],
-            },
-        }
-        coordination = {
-            "status": "Not Performed",
-            "score": None,
-            "confidence": None,
-            "components": {},
-            "evidence": {
-                "strengths": [],
-                "impairment_drivers": [],
-                "warnings": ["DDK task not performed."],
-            },
-        }
+        timing = _not_performed("DDK")
+        coordination = _not_performed("DDK")
     else:
         timing = _evaluate_timing(ddk_mean, ddk_sd, rq_classification)
         coordination = _evaluate_coordination(ddk_mean, ddk_sd, rq_classification)
