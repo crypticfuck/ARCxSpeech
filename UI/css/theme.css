@@ -763,12 +763,17 @@ body.theme-light #app-sidebar {
         transform: translate(0px, 0px) scale(1);
     }
 
-/* Centered placeholder shown when no subject/recording is the
-   active analysis target yet. Positioned against #nav-strip (the fixed
-   viewport) rather than #pinboard-canvas (the pannable/zoomable layer),
-   so it always sits in the middle of the visible screen regardless of
-   how far the board has been panned or zoomed. pointer-events: none so
-   it never blocks board panning or clicks-through to whatever's under it. */
+/* Centered nudge shown once a subject's been picked (dropdown open on
+   their recordings) but no recording has been chosen yet -- see
+   updatePinboardEmptyState() in project.js, the single place that
+   decides between this, the subject-picker search panel
+   (#subjectPickerModalLayer, subjects.css), and the "Select Recording"
+   dropdown for the empty pinboard area. Positioned against #nav-strip
+   (the fixed viewport) rather than #pinboard-canvas (the pannable/
+   zoomable layer), so it always sits in the middle of the visible screen
+   regardless of how far the board has been panned or zoomed.
+   pointer-events: none so it never blocks board panning or
+   clicks-through to whatever's under it. */
     .pinboard-no-target-msg {
         position: absolute;
         inset: 0;

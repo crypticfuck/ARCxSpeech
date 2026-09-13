@@ -119,6 +119,10 @@ let addGraphWidgetFn = null;
 let clearPinboardWidgetsFn = null;
 let refreshAllWidgetValuesFn = null;
 let closeRecordingSelectDropdownFn = null;
+// Set by the subject-picker search IIFE further down; lets
+// renderSubjectPicker() re-apply the current search query after a
+// rebuild instead of silently dropping the active filter.
+let refreshSubjectPickerFilterFn = null;
 let graphTaskTypes = {};
 // Cleanup hooks for destroy() -- each pinboard IIFE assigns its own
 // cleanup function here (disconnecting ResizeObservers, cancelling its
@@ -883,6 +887,52 @@ let analysisTargetType = null; // "subject" | "recording" | "recordings" | null
 // can be detected and treated as a no-op instead of re-clearing the board.
 let analysisTargetRef = null;
 
+// Four panels take turns occupying the empty pinboard area, based on how
+// far the user's gotten toward an actual analysis target:
+//   - nobody browsing yet (no subject, no target) -> the search-first
+//     picker modal (#subjectPickerModalLayer)
+//   - a subject is being browsed (dropdown open on their recordings) but
+//     no recording(s) picked yet -> the mid-pinboard nudge message
+//     (#pinboard-no-target-msg)
+//   - a target's been set but no widgets have been dropped onto the
+//     board yet -> a second nudge message (#pinboard-no-widgets-msg),
+//     pointing the user at the widget buttons instead of a blank board
+//   - a target is set AND at least one widget is on the board -> none of
+//     the above; the "Select Recording" pill/dropdown itself is visible
+//     throughout every state but the first.
+// Called from setAnalysisTarget() and wherever selectedSubject changes
+// (renderSubjects/renderRecordings, called after every such change), and
+// also from every widget add/remove/clear call site (createWidget, its
+// close-button handler, clearPinboardWidgetsFn) so the no-widgets nudge
+// tracks the live widget count rather than just the target-selection
+// moment. Suppressed while suppressPinboardEmptyStateToggle is true --
+// see pickSubjectFromPicker()/morphSearchBarToDropdownButton() below,
+// which choreograph these same panels by hand during the search-bar ->
+// dropdown-button morph animation, and would otherwise get overridden
+// mid-animation by an unrelated renderSubjects()/renderRecordings() call.
+let suppressPinboardEmptyStateToggle = false;
+
+function updatePinboardEmptyState() {
+    if (suppressPinboardEmptyStateToggle) return;
+    const hasSubject = !!selectedSubject;
+    const hasTarget = !!analysisTargetType;
+
+    const pickerLayer = container.querySelector("#subjectPickerModalLayer");
+    if (pickerLayer) pickerLayer.classList.toggle("is-hidden", hasSubject || hasTarget);
+
+    const recordingSelectWrap = container.querySelector("#recording-select-wrap");
+    if (recordingSelectWrap) recordingSelectWrap.classList.toggle("is-hidden", !hasSubject && !hasTarget);
+
+    const noTargetMsg = container.querySelector("#pinboard-no-target-msg");
+    if (noTargetMsg) noTargetMsg.classList.toggle("is-hidden", !(hasSubject && !hasTarget));
+
+    const noWidgetsMsg = container.querySelector("#pinboard-no-widgets-msg");
+    if (noWidgetsMsg) {
+        const hasWidgets = container.querySelectorAll(".pinboard-widget").length > 0;
+        noWidgetsMsg.classList.toggle("is-hidden", !(hasTarget && !hasWidgets));
+    }
+}
+
 function setAnalysisTarget(type, ref) {
     // Re-selecting the same subject/recording that's already the
     // active analysis target shouldn't do anything — in particular it
@@ -904,8 +954,7 @@ function setAnalysisTarget(type, ref) {
     if (typeof clearPinboardWidgetsFn === "function") {
         clearPinboardWidgetsFn();
     }
-    const noTargetMsg = container.querySelector("#pinboard-no-target-msg");
-    if (noTargetMsg) noTargetMsg.classList.toggle("is-hidden", !!type);
+    updatePinboardEmptyState();
     if (!type) {
         selectRecordingLabel.textContent = "Select Recording";
     }
@@ -1291,6 +1340,196 @@ function renderSubjects() {
         });
         subjectsListEl.appendChild(el);
     });
+    renderSubjectPicker();
+    updatePinboardEmptyState();
+}
+
+// ================= Subject picker (search-first landing panel) =================
+// Renders the same SUBJECTS list into #subjectPickerList (see
+// #subjectPickerModalLayer in shell.html) -- kept in sync by calling this
+// at the end of renderSubjects() above, so it never drifts out of sync
+// with the real subjects/#subjects-list. Picking a row here both sets
+// that subject as the analysis target AND drills the "Select Recording"
+// dropdown into their recordings, i.e. the combined effect of
+// selectSubject() + the "Analyze Subject" flyout action above -- so the
+// dropdown is left in a useful state the moment it appears.
+function renderSubjectPicker() {
+    const list = container.querySelector("#subjectPickerList");
+    if (!list) return;
+    list.innerHTML = "";
+    SUBJECTS.forEach((s) => {
+        const group = document.createElement("div");
+        group.className = "subject-picker-group";
+        group.innerHTML = `
+            <button type="button" class="subject-picker-row">
+                <div class="subject-picker-avatar">${initials(s.name)}</div>
+                <div class="subject-picker-info">
+                    <div class="subject-picker-name">${s.name}</div>
+                    <div class="subject-picker-sub">${s.id} &middot; ${s.group}</div>
+                </div>
+            </button>
+        `;
+        group.querySelector(".subject-picker-row").addEventListener("click", (e) => {
+            e.stopPropagation();
+            pickSubjectFromPicker(s);
+        });
+        list.appendChild(group);
+    });
+    // Re-apply whatever search query is currently typed (if any) to the
+    // freshly rendered rows -- a rebuild otherwise wipes the filtering.
+    if (typeof refreshSubjectPickerFilterFn === "function") refreshSubjectPickerFilterFn();
+}
+
+async function pickSubjectFromPicker(s) {
+    // Captured before anything else changes -- once the picker layer
+    // gets hidden (a couple of steps down), the real search bar can't be
+    // measured any more, but the morph animation below needs its exact
+    // on-screen rect as the starting point.
+    const searchBar = container.querySelector(".subject-picker-search");
+    const startRect = searchBar ? searchBar.getBoundingClientRect() : null;
+    const targetWrap = container.querySelector("#recording-select-wrap");
+    const targetBtn = container.querySelector("#select-recording-btn");
+
+    selectedSubject = s;
+    selectedRecording = null;
+    currentLevel = "recordings";
+
+    // The usual renderSubjects()/renderRecordings() -> updatePinboardEmptyState()
+    // chain would swap the picker panel/dropdown-button visibility
+    // instantly, right underneath the animation about to run -- suppress
+    // it here and settle the real end-state by hand once the morph
+    // finishes (see the callback below and its fallback).
+    suppressPinboardEmptyStateToggle = true;
+    renderSubjects();
+    renderLevelChrome();
+    if (!RECORDINGS[s.id]) {
+        recordingsListEl.innerHTML = `<div class="box-empty"><div class="empty-title">Loading&hellip;</div></div>`;
+    }
+    renderRecordings();
+
+    function settleAfterMorph() {
+        if (targetWrap) targetWrap.style.visibility = "";
+        suppressPinboardEmptyStateToggle = false;
+        updatePinboardEmptyState();
+        // Doesn't set an analysis target itself -- just drops the user
+        // into this subject's recordings, dropdown open, ready to pick
+        // one (or several, via the multi-select dots + Continue) to
+        // actually start analysis. Picking the whole subject as the
+        // target is still done via the "Analyze Subject" row-flyout
+        // action, same as before.
+        openRecordingSelectDropdown();
+    }
+
+    if (startRect && targetWrap && targetBtn) {
+        // Reveal the dropdown-button wrap invisibly (visibility, not
+        // display) so its real position/size is measurable for the
+        // morph's later stages, without it flashing into view before
+        // the animated dot actually arrives there.
+        targetWrap.classList.remove("is-hidden");
+        targetWrap.style.visibility = "hidden";
+        morphSearchBarToDropdownButton(startRect, targetBtn, settleAfterMorph);
+    } else {
+        // Fallback: something needed for the animation isn't where
+        // expected -- just settle instantly instead of leaving the UI
+        // stuck mid-transition.
+        settleAfterMorph();
+    }
+
+    await loadRecordingsForSubject(s);
+    if (selectedSubject === s) renderRecordings();
+}
+
+// ================= Search-bar -> dropdown-button morph animation =================
+// Runs the visual transition described above pickSubjectFromPicker():
+// the search bar collapses in place into a small dot, the dot travels up
+// to wherever the real "Select Recording" pill sits, then it expands
+// back out to that pill's exact size/shape. All three stages animate a
+// single floating ghost element (position:fixed, so it's unaffected by
+// the picker panel disappearing partway through) -- the real search bar
+// is hidden the instant the ghost appears, and the real pill only
+// becomes visible once the ghost reaches its final size, so at no point
+// are there two visible copies of either.
+let activeSubjectPickerMorphGhost = null;
+
+function morphSearchBarToDropdownButton(startRect, targetBtn, onDone) {
+    if (activeSubjectPickerMorphGhost) {
+        activeSubjectPickerMorphGhost.remove();
+        activeSubjectPickerMorphGhost = null;
+    }
+
+    const pickerLayer = container.querySelector("#subjectPickerModalLayer");
+    const searchBar = container.querySelector(".subject-picker-search");
+    if (searchBar) searchBar.style.visibility = "hidden";
+
+    const ghost = document.createElement("div");
+    ghost.className = "subject-picker-morph";
+    Object.assign(ghost.style, {
+        left: startRect.left + "px",
+        top: startRect.top + "px",
+        width: startRect.width + "px",
+        height: startRect.height + "px",
+        borderRadius: "10px",
+    });
+    document.body.appendChild(ghost);
+    activeSubjectPickerMorphGhost = ghost;
+
+    const DOT = 36;
+    const centerX = startRect.left + startRect.width / 2;
+    const centerY = startRect.top + startRect.height / 2;
+
+    // Runs one leg of the morph: sets how long the *next* style change
+    // should take, then (a frame later, so the browser has something
+    // painted to transition from) applies that change, resolving once
+    // it's done.
+    function animateTo(styles, durationMs) {
+        return new Promise((resolve) => {
+            ghost.style.transitionDuration = durationMs + "ms";
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                Object.assign(ghost.style, styles);
+            }));
+            setTimeout(resolve, durationMs);
+        });
+    }
+
+    // Stage 1: collapse in place into a small dot, centered on the
+    // search bar's own current center point.
+    animateTo({
+        left: (centerX - DOT / 2) + "px",
+        top: (centerY - DOT / 2) + "px",
+        width: DOT + "px",
+        height: DOT + "px",
+        borderRadius: "50%",
+    }, 220)
+        .then(() => {
+            // The search panel's done its job -- hide it as the dot
+            // detaches and heads for the button, rather than leaving it
+            // sitting there behind the moving dot.
+            if (pickerLayer) pickerLayer.classList.add("is-hidden");
+            // Stage 2: travel up to the button's center. Measured fresh
+            // (not reused from before) in case anything shifted the
+            // menubar layout while stage 1 was running.
+            const btnRect = targetBtn.getBoundingClientRect();
+            return animateTo({
+                left: (btnRect.left + btnRect.width / 2 - DOT / 2) + "px",
+                top: (btnRect.top + btnRect.height / 2 - DOT / 2) + "px",
+            }, 340);
+        })
+        .then(() => {
+            // Stage 3: expand back out to the button's exact rect.
+            const btnRect = targetBtn.getBoundingClientRect();
+            return animateTo({
+                left: btnRect.left + "px",
+                top: btnRect.top + "px",
+                width: btnRect.width + "px",
+                height: btnRect.height + "px",
+                borderRadius: "20px",
+            }, 220);
+        })
+        .then(() => {
+            ghost.remove();
+            if (activeSubjectPickerMorphGhost === ghost) activeSubjectPickerMorphGhost = null;
+            onDone();
+        });
 }
 
 async function deleteSubject(s) {
@@ -1339,6 +1578,7 @@ async function selectSubject(s) {
 
 function renderRecordings() {
     updateRecordingMultiselectBar();
+    updatePinboardEmptyState();
     recordingsListEl.innerHTML = "";
 
     if (!selectedSubject) {
@@ -2420,21 +2660,43 @@ const recordingSelectDropdown = container.querySelector("#recording-select-dropd
 
 updateWidgetButtonsAvailability();
 
+// Set while the .closing animation (see recordingDropdownClose in
+// subjects.css) is in flight, so a fast reopen can cancel it cleanly
+// instead of leaving a stale animationend listener around or fighting
+// the close animation for control of opacity/transform.
+let recordingDropdownCloseHandler = null;
+
 function openRecordingSelectDropdown() {
     container.querySelectorAll(".menubar-menu.open").forEach(m => m.classList.remove("open"));
     if (typeof closeAllTypeDropdownsFn === "function") closeAllTypeDropdownsFn();
+    if (recordingDropdownCloseHandler) {
+        recordingSelectDropdown.removeEventListener("animationend", recordingDropdownCloseHandler);
+        recordingDropdownCloseHandler = null;
+    }
+    recordingSelectDropdown.classList.remove("closing");
     recordingSelectDropdown.classList.add("open");
     updateRecordingMultiselectBar();
 }
 
 function closeRecordingSelectDropdown() {
+    // Guard against the many unconditional call sites (outside click,
+    // Escape, etc.) re-triggering the close animation on an already-
+    // closed (or already-closing) panel.
+    if (!recordingSelectDropdown.classList.contains("open")) return;
     recordingSelectDropdown.classList.remove("open");
+    recordingSelectDropdown.classList.add("closing");
     if (recordingMultiselectBar) recordingMultiselectBar.classList.remove("open");
     // Closing without pressing "Continue" discards any tentative dot
     // clicks -- revert to whatever's actually the committed target so
     // reopening the dropdown later doesn't show stale selections.
     syncMultiSelectFromTarget();
     renderRecordings();
+
+    recordingDropdownCloseHandler = () => {
+        recordingSelectDropdown.classList.remove("closing");
+        recordingDropdownCloseHandler = null;
+    };
+    recordingSelectDropdown.addEventListener("animationend", recordingDropdownCloseHandler, { once: true });
 }
 closeRecordingSelectDropdownFn = closeRecordingSelectDropdown;
 
@@ -2450,23 +2712,93 @@ selectRecordingBtn.addEventListener("click", (e) => {
 
 recordingSelectDropdown.addEventListener("click", (e) => e.stopPropagation());
 
-// ================= Subject picker modal accordion (VISUAL MOCKUP ONLY) =================
-// Purely a visual/interaction mockup for the centered subject-picker panel
-// (#subjectPickerModal in shell.html) -- expands a clicked subject's row
-// downward to reveal its (static, placeholder) sessions list, exactly the
-// same single-open accordion pattern as the hamburger menu's File/Edit/
-// View/etc. groups in shell.js. No real session data involved; this only
-// toggles the ".open" class scoped to this tab's own modal instance.
-container.querySelectorAll(".subject-picker-group").forEach((group) => {
-    const row = group.querySelector(".subject-picker-row");
-    if (!row) return;
-    row.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const isOpen = group.classList.contains("open");
-        container.querySelectorAll(".subject-picker-group.open").forEach((g) => g.classList.remove("open"));
-        if (!isOpen) group.classList.add("open");
-    });
-});
+// ---- Search filtering (still mock data, but the search box now actually
+// filters it) --------------------------------------------------------
+// Panel opens onto just the search bar, vertically centered (idle) --
+// typing narrows .subject-picker-group rows down to name/id/group
+// matches, and the search bar animates up to its pinned top position to
+// make room for the results (or the "no matches" hint). Filtering runs
+// on every keystroke ("input"), no Enter needed.
+(function () {
+    const searchInput = container.querySelector("#subjectPickerSearchInput");
+    const modal = container.querySelector("#subjectPickerModal");
+    const searchWrap = container.querySelector(".subject-picker-search");
+    const list = container.querySelector("#subjectPickerList");
+    const hint = container.querySelector("#subjectPickerHint");
+    if (!searchInput || !modal || !searchWrap || !list || !hint) return;
+
+    // Moves the search bar between its idle (auto-margin, vertically
+    // centered) and searching (pinned near the top) positions with a
+    // FLIP transform -- CSS can't transition a margin to/from "auto", so
+    // instead: measure where the bar is now, flip the class (which jumps
+    // it to its new CSS position), measure again, then animate a
+    // transform from the old visual spot back to zero.
+    // Moves the search bar between its idle (auto-margin, vertically
+    // centered + a small upward nudge) and searching (pinned near the
+    // top) positions with a FLIP transform -- CSS can't transition a
+    // margin to/from "auto", so instead: measure where the bar is now,
+    // clear any transform override and flip the class (landing it at its
+    // new CSS-driven position, idle nudge included), measure again, then
+    // animate a transform from the old visual spot back down to
+    // whatever the class itself specifies (cleared inline transform, not
+    // a hardcoded translateY(0)) -- that way a future change to the idle
+    // nudge in subjects.css doesn't need any matching change here.
+    function setSearching(isSearching) {
+        if (modal.classList.contains("is-searching") === isSearching) return;
+        const before = searchWrap.getBoundingClientRect().top;
+
+        searchWrap.style.transition = "none";
+        searchWrap.style.transform = "";
+        modal.classList.toggle("is-searching", isSearching);
+        const after = searchWrap.getBoundingClientRect().top;
+
+        const delta = before - after;
+        if (!delta) return;
+
+        searchWrap.style.transform = `translateY(${delta}px)`;
+        void searchWrap.offsetHeight; // force reflow before re-enabling the transition
+        searchWrap.style.transition = "transform .22s ease";
+        searchWrap.style.transform = "";
+    }
+
+    function filterSubjectPickerRows() {
+        // Rows are rebuilt from scratch by renderSubjectPicker() whenever
+        // SUBJECTS changes, so this is re-queried on every call instead of
+        // captured once -- a stale reference here would keep filtering rows
+        // that got thrown away on the last rebuild.
+        const groups = Array.from(container.querySelectorAll(".subject-picker-group"));
+        const query = searchInput.value.trim().toLowerCase();
+        setSearching(!!query);
+
+        if (!query) {
+            list.classList.remove("has-matches");
+            hint.classList.remove("visible");
+            groups.forEach((g) => g.classList.remove("picker-row-hidden"));
+            return;
+        }
+
+        let anyMatch = false;
+        groups.forEach((group) => {
+            const name = group.querySelector(".subject-picker-name")?.textContent.toLowerCase() || "";
+            const sub = group.querySelector(".subject-picker-sub")?.textContent.toLowerCase() || "";
+            const matches = name.includes(query) || sub.includes(query);
+            group.classList.toggle("picker-row-hidden", !matches);
+            if (matches) anyMatch = true;
+        });
+
+        list.classList.toggle("has-matches", anyMatch);
+        hint.classList.toggle("visible", !anyMatch);
+        if (!anyMatch) hint.textContent = "No subjects match your search";
+    }
+
+    searchInput.addEventListener("input", filterSubjectPickerRows);
+    filterSubjectPickerRows(); // idle state on load
+
+    // Exposed so renderSubjectPicker() (which rebuilds the rows whenever
+    // SUBJECTS changes) can re-apply whatever's currently typed, instead
+    // of a rebuild silently dropping the active filter.
+    refreshSubjectPickerFilterFn = filterSubjectPickerRows;
+})();
 
 function isInsideOpenModal(target) {
     if (!target.closest) return false;
@@ -2526,6 +2858,7 @@ addDocListener("keydown", (e) => {
     // of them should linger once the user picks a different target.
     clearPinboardWidgetsFn = function () {
         board.querySelectorAll(".pinboard-widget").forEach(w => w.remove());
+        updatePinboardEmptyState();
         // Widgets removed this way (target switch) don't go through the
         // close button, so nothing else clears the is-open highlight --
         // do it here for every graph button (legacy toolbar ids, plus
@@ -6788,6 +7121,7 @@ addDocListener("keydown", (e) => {
 
         bringToFront(widget);
         wireWidget(widget);
+        updatePinboardEmptyState();
     }
 
     function bringToFront(widget) {
@@ -7016,6 +7350,7 @@ addDocListener("keydown", (e) => {
                 const graphTitle = widget.dataset.graphTitle;
                 widget.remove();
                 if (graphTitle) syncGraphToolbarButtonOpenState(graphTitle);
+                updatePinboardEmptyState();
             });
         }
     }
