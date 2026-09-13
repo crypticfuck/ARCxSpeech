@@ -1,9 +1,9 @@
 """
-Central place that resolves a project_id (+ subject/session/task, for
+Central place that resolves a project_id (+ subject/date/task, for
 recordings) into filesystem paths. Every per-project store
-(subject_store, session_store, recording_store) and the recorder call
-through here instead of hardcoding paths themselves, so "where does
-project X's data live on disk" is answered in exactly one place.
+(subject_store, recording_store) and the recorder call through here
+instead of hardcoding paths themselves, so "where does project X's
+data live on disk" is answered in exactly one place.
 
 Layout on disk:
 
@@ -12,14 +12,13 @@ Layout on disk:
         projects/
             <project name>/
                 subjects.json
-                sessions.json
                 recordings.json
                 research_sessions.json
                 baseline.json
                 Subjects/
                     <subject id>/
-                        Sessions/
-                            <session name> (<short session id>)/
+                        Recordings/
+                            <date, YYYY-MM-DD>/
                                 DDK/
                                     01_live/          <- both channels of take 1
                                     02_uploaded/       <- patient channel only
@@ -29,9 +28,17 @@ Layout on disk:
 Deleting a project is therefore just removing its one directory under
 projects/ (see project_store.delete_project).
 
+NOTE on the date folder: it's just a grouping bucket for recordings
+made on the same calendar day, derived from each recording's
+created_at at save time -- it is not its own entity with an id
+anywhere in the data model (unlike the old session concept it
+replaces). Sessions have been removed entirely; recordings now hang
+directly off subject_id, and the date folder is purely a filesystem
+convenience.
+
 NOTE on project folders being name-based: the project's `id` (UUID)
 is still the primary key everywhere -- every API route, and every
-foreign key inside subjects.json/sessions.json/recordings.json --
+foreign key inside subjects.json/recordings.json --
 this file is the ONLY place that resolves id -> current on-disk
 folder. That resolution is done fresh on every call (by looking the
 project up in projects.json), which is what lets project_store.py
@@ -133,16 +140,31 @@ def subject_dir(project_id: str, subject_id: str) -> str:
     return os.path.join(subjects_root(project_id), sanitize_folder_name(subject_id))
 
 
-def session_dir(project_id: str, subject_id: str, session_id: str, session_name: str = None) -> str:
-    """Session folders are named "<session name> (<short id>)". The
-    name alone isn't guaranteed unique -- default names like "Session
-    1" can repeat after a delete + re-add -- so the first 8 chars of
-    the session's uuid are always appended, which is guaranteed
-    unique and keeps the folder readable at the same time."""
-    _guard_id(session_id, "session_id")
-    label = sanitize_folder_name(session_name, fallback="Session") if session_name else "Session"
-    folder = f"{label} ({session_id[:8]})"
-    return os.path.join(subject_dir(project_id, subject_id), "Sessions", folder)
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def date_key(when: "datetime.datetime" = None) -> str:
+    """The "YYYY-MM-DD" string used both as the date-folder name and
+    as the `date` field stored on each recording row. Centralized here
+    so the folder name and the stored grouping key can never drift
+    apart."""
+    when = when or datetime.datetime.now()
+    return when.strftime("%Y-%m-%d")
+
+
+def recordings_root(project_id: str, subject_id: str) -> str:
+    return os.path.join(subject_dir(project_id, subject_id), "Recordings")
+
+
+def date_dir(project_id: str, subject_id: str, date: str) -> str:
+    """One folder per calendar day of recordings for this subject.
+    `date` is expected to already be a "YYYY-MM-DD" string (see
+    date_key()) -- guarded here rather than reformatted, since this
+    function shouldn't silently coerce a bad value into a different
+    day than the caller thinks it's writing to."""
+    if not _DATE_RE.match(date or ""):
+        raise ValueError(f"Invalid date folder key: {date!r}")
+    return os.path.join(recordings_root(project_id, subject_id), date)
 
 
 # Display task names (as stored on each recording row) -> the folder
@@ -174,20 +196,20 @@ def recording_stem(subject_id: str, task: str, when: "datetime.datetime" = None)
     return sanitize_folder_name(f"{label}_{stamp}_{subject_id}")
 
 
-def task_dir(project_id: str, subject_id: str, session_id: str, session_name: str, task: str) -> str:
+def task_dir(project_id: str, subject_id: str, date: str, task: str) -> str:
     return os.path.join(
-        session_dir(project_id, subject_id, session_id, session_name),
+        date_dir(project_id, subject_id, date),
         task_folder_name(task),
     )
 
 
 def recording_dir(
-    project_id: str, subject_id: str, session_id: str, session_name: str,
+    project_id: str, subject_id: str, date: str,
     task: str, serial: int, source: str,
 ) -> str:
     """One folder per take, named "<serial>_<source>" (e.g.
     "01_live", "02_uploaded") -- `serial` is the take's 1-based
-    position within this session+task, `source` is "live" or
+    position within this subject+date+task, `source` is "live" or
     "uploaded", matching the `source` field already stored on each
     recording row. This folder holds BOTH the patient and ambient
     audio for a live take (uploaded takes only ever have patient
@@ -199,7 +221,7 @@ def recording_dir(
     that's still on disk), the serial is bumped until a free folder
     name is found, so two different takes can never land in the same
     directory."""
-    base = task_dir(project_id, subject_id, session_id, session_name, task)
+    base = task_dir(project_id, subject_id, date, task)
     n = max(int(serial), 1)
     while True:
         candidate = os.path.join(base, f"{n:02d}_{source}")

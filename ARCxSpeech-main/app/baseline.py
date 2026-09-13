@@ -78,7 +78,7 @@ def get_valid_patient_history(project_id: str, patient_id: str) -> List[Dict[str
     - Sort chronologically
 
     Sourced from app.clinical_history, which builds these
-    assessment-shaped records live from subject_store/session_store/
+    assessment-shaped records live from subject_store/
     recording_store -- the successor to the old flat
     assessment_store.json blob this function originally read.
     """

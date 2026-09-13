@@ -1,11 +1,10 @@
 [
   {
     "recording_id": "a2659e76-0d77-48c5-9e1a-48afe69b1933",
-    "session_id": "5a4bf99d-e157-4e1a-bb29-ade3f489b011",
     "task": "DDK",
     "source": "uploaded",
     "created_at": "2026-09-11T01:30:00.179758",
-    "patient_filepath": "Subjects\\1\\Sessions\\1 (5a4bf99d)\\DDK\\01_uploaded\\patient_DDK_20260911-012955_1.wav",
+    "patient_filepath": "Subjects\\1\\Recordings\\2026-09-11\\DDK\\01_uploaded\\patient_DDK_20260911-012955_1.wav",
     "ambient_filepath": null,
     "features": {
       "DDK Repetition Count": 21,
@@ -19,6 +18,8 @@
     },
     "ambient_metrics": null,
     "quality_metrics": null,
-    "quality_classification": null
+    "quality_classification": null,
+    "subject_id": "1",
+    "date": "2026-09-11"
   }
 ]

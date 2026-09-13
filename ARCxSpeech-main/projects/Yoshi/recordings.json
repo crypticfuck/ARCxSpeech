@@ -1,12 +1,11 @@
 [
   {
     "recording_id": "9d6f9450-aa7a-44e5-aece-d6a18679468e",
-    "session_id": "4f22e8aa-bcd7-42d7-8d26-b64fde8d3f55",
     "task": "Sustained Vowel",
     "source": "live",
     "created_at": "2026-09-10T13:51:46.932952",
-    "patient_filepath": "Subjects\\8008\\Sessions\\First (4f22e8aa)\\Sustained\\01_live\\patient_Sustained_20260910-135146_8008.wav",
-    "ambient_filepath": "Subjects\\8008\\Sessions\\First (4f22e8aa)\\Sustained\\01_live\\ambient_Sustained_20260910-135146_8008.wav",
+    "patient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\Sustained\\01_live\\patient_Sustained_20260910-135146_8008.wav",
+    "ambient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\Sustained\\01_live\\ambient_Sustained_20260910-135146_8008.wav",
     "features": {
       "F0 Mean": 115.15,
       "F0 Min": 112.246,
@@ -46,16 +45,17 @@
       "Environment": "Moderate Recording Conditions",
       "Recommendation": "Recording is usable, but a quieter environment is recommended.",
       "Confidence": "High"
-    }
+    },
+    "subject_id": "8008",
+    "date": "2026-09-10"
   },
   {
     "recording_id": "629f9699-abfc-4ce9-9337-679babf3d887",
-    "session_id": "4f22e8aa-bcd7-42d7-8d26-b64fde8d3f55",
     "task": "DDK",
     "source": "live",
     "created_at": "2026-09-10T13:52:26.081806",
-    "patient_filepath": "Subjects\\8008\\Sessions\\First (4f22e8aa)\\DDK\\01_live\\patient_DDK_20260910-135226_8008.wav",
-    "ambient_filepath": "Subjects\\8008\\Sessions\\First (4f22e8aa)\\DDK\\01_live\\ambient_DDK_20260910-135226_8008.wav",
+    "patient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\DDK\\01_live\\patient_DDK_20260910-135226_8008.wav",
+    "ambient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\DDK\\01_live\\ambient_DDK_20260910-135226_8008.wav",
     "features": {
       "DDK Repetition Count": 21,
       "DDK Repetition Rate": 2.183,
@@ -95,16 +95,17 @@
       "Environment": "Poor Recording Conditions",
       "Recommendation": "Some speech measurements may be affected by background noise.",
       "Confidence": "High"
-    }
+    },
+    "subject_id": "8008",
+    "date": "2026-09-10"
   },
   {
     "recording_id": "279d82dd-0b67-4a04-bad0-37fffcac3199",
-    "session_id": "558d6536-28d3-4f0b-b9a4-e7c49840a99a",
     "task": "Sustained Vowel",
     "source": "live",
     "created_at": "2026-09-10T13:53:50.396591",
-    "patient_filepath": "Subjects\\8008\\Sessions\\second (558d6536)\\Sustained\\01_live\\patient_Sustained_20260910-135350_8008.wav",
-    "ambient_filepath": "Subjects\\8008\\Sessions\\second (558d6536)\\Sustained\\01_live\\ambient_Sustained_20260910-135350_8008.wav",
+    "patient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\Sustained\\02_live\\patient_Sustained_20260910-135350_8008.wav",
+    "ambient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\Sustained\\02_live\\ambient_Sustained_20260910-135350_8008.wav",
     "features": {
       "F0 Mean": 121.696,
       "F0 Min": 119.61,
@@ -144,16 +145,17 @@
       "Environment": "Moderate Recording Conditions",
       "Recommendation": "Recording is usable, but a quieter environment is recommended.",
       "Confidence": "High"
-    }
+    },
+    "subject_id": "8008",
+    "date": "2026-09-10"
   },
   {
     "recording_id": "42fcb207-eb49-4a37-93a0-1292d668217b",
-    "session_id": "558d6536-28d3-4f0b-b9a4-e7c49840a99a",
     "task": "DDK",
     "source": "live",
     "created_at": "2026-09-10T13:54:09.716401",
-    "patient_filepath": "Subjects\\8008\\Sessions\\second (558d6536)\\DDK\\01_live\\patient_DDK_20260910-135409_8008.wav",
-    "ambient_filepath": "Subjects\\8008\\Sessions\\second (558d6536)\\DDK\\01_live\\ambient_DDK_20260910-135409_8008.wav",
+    "patient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\DDK\\02_live\\patient_DDK_20260910-135409_8008.wav",
+    "ambient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\DDK\\02_live\\ambient_DDK_20260910-135409_8008.wav",
     "features": {
       "DDK Repetition Count": 24,
       "DDK Repetition Rate": 2.509,
@@ -193,16 +195,17 @@
       "Environment": "Poor Recording Conditions",
       "Recommendation": "Some speech measurements may be affected by background noise.",
       "Confidence": "High"
-    }
+    },
+    "subject_id": "8008",
+    "date": "2026-09-10"
   },
   {
     "recording_id": "60828964-1fb1-4e7b-a18a-845b8f1bdc24",
-    "session_id": "7b1de483-fb9c-43ce-8076-c031fd7dbe16",
     "task": "Sustained Vowel",
     "source": "live",
     "created_at": "2026-09-10T13:54:39.629055",
-    "patient_filepath": "Subjects\\8008\\Sessions\\third (7b1de483)\\Sustained\\01_live\\patient_Sustained_20260910-135439_8008.wav",
-    "ambient_filepath": "Subjects\\8008\\Sessions\\third (7b1de483)\\Sustained\\01_live\\ambient_Sustained_20260910-135439_8008.wav",
+    "patient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\Sustained\\03_live\\patient_Sustained_20260910-135439_8008.wav",
+    "ambient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\Sustained\\03_live\\ambient_Sustained_20260910-135439_8008.wav",
     "features": {
       "F0 Mean": 119.461,
       "F0 Min": 116.205,
@@ -242,16 +245,17 @@
       "Environment": "Moderate Recording Conditions",
       "Recommendation": "Recording is usable, but a quieter environment is recommended.",
       "Confidence": "High"
-    }
+    },
+    "subject_id": "8008",
+    "date": "2026-09-10"
   },
   {
     "recording_id": "9113fcc4-32d8-4e9c-923c-16ac0b6340ad",
-    "session_id": "7b1de483-fb9c-43ce-8076-c031fd7dbe16",
     "task": "DDK",
     "source": "live",
     "created_at": "2026-09-10T13:54:58.341124",
-    "patient_filepath": "Subjects\\8008\\Sessions\\third (7b1de483)\\DDK\\01_live\\patient_DDK_20260910-135458_8008.wav",
-    "ambient_filepath": "Subjects\\8008\\Sessions\\third (7b1de483)\\DDK\\01_live\\ambient_DDK_20260910-135458_8008.wav",
+    "patient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\DDK\\03_live\\patient_DDK_20260910-135458_8008.wav",
+    "ambient_filepath": "Subjects\\8008\\Recordings\\2026-09-10\\DDK\\03_live\\ambient_DDK_20260910-135458_8008.wav",
     "features": {
       "DDK Repetition Count": 24,
       "DDK Repetition Rate": 2.43,
@@ -291,6 +295,8 @@
       "Environment": "Poor Recording Conditions",
       "Recommendation": "Some speech measurements may be affected by background noise.",
       "Confidence": "High"
-    }
+    },
+    "subject_id": "8008",
+    "date": "2026-09-10"
   }
 ]

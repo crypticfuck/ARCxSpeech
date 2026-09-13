@@ -76,6 +76,12 @@ body {
         width: 100%;
         display: flex;
         flex-direction: column;
+        /* Positioned so .subject-picker-modal-layer (a direct child, see
+           shell.html) can span it with inset:0 and center the subject
+           picker modal against the whole area below the titlebar --
+           secondary-menubar + nav-strip together -- rather than just the
+           pinboard canvas. */
+        position: relative;
     }
 
 /* ---------- Window titlebar + menu bar (combined) ---------- */
@@ -718,7 +724,7 @@ body.theme-light #app-sidebar {
         flex: 1;
     }
 
-/* ---------- Top navigation strip: Subjects | Sessions+Recordings ---------- */
+/* ---------- Top navigation strip: Subjects | Recordings ---------- */
 
     #nav-strip {
         flex: 1;
@@ -757,7 +763,7 @@ body.theme-light #app-sidebar {
         transform: translate(0px, 0px) scale(1);
     }
 
-/* Centered placeholder shown when no subject/session/recording is the
+/* Centered placeholder shown when no subject/recording is the
    active analysis target yet. Positioned against #nav-strip (the fixed
    viewport) rather than #pinboard-canvas (the pannable/zoomable layer),
    so it always sits in the middle of the visible screen regardless of

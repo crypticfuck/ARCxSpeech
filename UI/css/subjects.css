@@ -5,8 +5,8 @@
    ========================================================================== */
 
 /* ==========================================================================
-   Subject / Session / Recording select dropdown
-   Drill-down list (Subjects -> Sessions -> Recordings) that opens under
+   Subject / Recording select dropdown
+   Drill-down list (Subjects -> Recordings) that opens under
    the "Select Recording" button in the secondary menubar.
    ========================================================================== */
 
@@ -20,7 +20,7 @@
         left: 0;
         width: 320px;
         /* Fixed (not max-) height so the panel always opens at its full
-           size, even when the active list (subjects/sessions/recordings)
+           size, even when the active list (subjects/recordings)
            is empty -- the empty-state message then just sits inside a
            full-height panel instead of the whole dropdown shrinking to
            hug it. */
@@ -39,13 +39,268 @@
         display: flex;
     }
 
+#recording-multiselect-bar {
+        position: absolute;
+        top: calc(100% + 8px + 420px + 8px);
+        left: 0;
+        width: 320px;
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        background-color: var(--bg-box);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        z-index: 50;
+    }
+
+#recording-multiselect-bar.open {
+        display: flex;
+    }
+
+#recording-multiselect-count {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
 /* Lists still round off/clip their own scroll area even though the panel
    itself no longer clips (needed so the add-recording flyout can escape
    the panel's right edge, see below). */
     #subjects-list,
-    #sessions-list,
     #recordings-list {
         border-radius: 0 0 12px 12px;
+    }
+
+/* ==========================================================================
+   Subject picker modal (VISUAL MOCKUP ONLY -- see the HTML comment above
+   #subjectPickerModalLayer in shell.html). Centered over the whole area
+   below the titlebar (secondary-menubar + nav-strip together, via
+   .subject-picker-modal-layer spanning #project-view-page) rather than
+   just the pinboard canvas, in place of the plain "Select a subject..."
+   text when a project first opens. Colors here are hardcoded rather than
+   pulled from the theme tokens on purpose -- the panel should stay a
+   solid black card with visible borders in both light and dark mode, so
+   it can't just reuse --bg-box/--text-primary etc. (those flip to
+   near-white/near-black and would make the panel unreadable in light
+   mode).
+   ========================================================================== */
+
+/* Full-bleed centering layer -- see the HTML comment above
+   #subjectPickerModalLayer in shell.html for why this is a sibling of
+   #nav-strip rather than a child of it. pointer-events:none so it never
+   blocks clicks to anything else on the page outside the modal itself;
+   the modal re-enables pointer-events on itself below. */
+    .subject-picker-modal-layer {
+        position: absolute;
+        inset: 0;
+        /* Hidden for now -- still a WIP mockup, not wired to real data
+           yet. Set back to flex (or toggle via JS) when this is ready
+           to come back into view. Markup/CSS left fully intact below. */
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+        pointer-events: none;
+    }
+
+.subject-picker-modal {
+        width: 720px;
+        max-width: calc(100% - 48px);
+        /* Fixed height (not max-height) so the panel doesn't grow when a
+           subject's sessions expand -- the list scrolls internally
+           instead (.subject-picker-list has overflow-y:auto). */
+        height: min(400px, calc(100% - 48px));
+        display: flex;
+        flex-direction: column;
+        background-color: #000000;
+        border-radius: 8px;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+        pointer-events: auto;
+        cursor: default;
+    }
+
+.subject-picker-search {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 560px;
+        max-width: calc(100% - 32px);
+        margin: 16px auto 20px auto;
+        padding: 7px 12px;
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        transition: border-color .15s ease;
+    }
+
+.subject-picker-search:focus-within {
+        border-color: rgba(255, 255, 255, 0.22);
+    }
+
+.subject-picker-search-icon {
+        flex-shrink: 0;
+        color: #6E6E6E;
+    }
+
+.subject-picker-search input {
+        flex: 1;
+        min-width: 0;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: #F9F9F9;
+        background: transparent;
+        border: none;
+        outline: none;
+    }
+
+.subject-picker-search input::placeholder {
+        color: #6E6E6E;
+    }
+
+.subject-picker-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 4px 12px 14px 12px;
+        display: flex;
+        flex-direction: column;
+    }
+
+.subject-picker-group {
+        display: flex;
+        flex-direction: column;
+        /* Division lines between subjects -- skipped on the last group so
+           the list doesn't end on a stray rule. Lives on the whole group
+           (row + its expanded sessions) rather than just the row, so an
+           expanded subject still reads as one section. */
+        border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+.subject-picker-group:last-child {
+        border-bottom: none;
+    }
+
+.subject-picker-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 10px;
+        font-family: inherit;
+        background: transparent;
+        border: none;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color .15s ease;
+    }
+
+.subject-picker-row:hover {
+        background-color: rgba(255, 255, 255, 0.07);
+    }
+
+.subject-picker-chevron {
+        flex-shrink: 0;
+        color: #6E6E6E;
+        transition: transform .15s ease;
+    }
+
+.subject-picker-group.open .subject-picker-chevron {
+        transform: rotate(-180deg);
+    }
+
+/* Expands downward, same accordion pattern as the hamburger menu's
+   File/Edit/View/etc. groups (see .menubar-group-items in theme.css) --
+   collapsed by default, shown when the group has .open. */
+.subject-picker-sessions {
+        display: none;
+        flex-direction: column;
+        padding: 0 0 6px 0;
+    }
+
+.subject-picker-group.open .subject-picker-sessions {
+        display: flex;
+    }
+
+.subject-picker-session-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        /* Left padding lines the session name up under the subject name
+           above it (avatar width 30px + row gap 10px + row padding 10px). */
+        padding: 8px 10px 8px 50px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color .15s ease;
+    }
+
+.subject-picker-session-row:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+.subject-picker-session-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: #D8D8D8;
+    }
+
+.subject-picker-session-date {
+        font-size: 11px;
+        font-weight: 500;
+        color: #6E6E6E;
+    }
+
+.subject-picker-avatar {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: #ABABAB;
+    }
+
+.subject-picker-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+.subject-picker-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #F9F9F9;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+.subject-picker-sub {
+        font-size: 11px;
+        font-weight: 500;
+        color: #6E6E6E;
+    }
+
+.subject-picker-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+.subject-picker-list::-webkit-scrollbar-thumb {
+        background-color: #333333;
+        border-radius: 10px;
     }
 
 /* ==========================================================================
@@ -84,8 +339,8 @@
 
 /* Drill-down list header: back button + level title on the left,
    level-specific actions (sort / add) on the right. Swaps between
-   Subjects -> Sessions -> Recordings in the same panel instead of
-   three separate boxes. */
+   Subjects -> Recordings in the same panel instead of
+   two separate boxes. */
     #list-header-left {
         display: flex;
         align-items: center;
@@ -230,7 +485,6 @@
     }
 
 #subjects-list,
-    #sessions-list,
     #recordings-list {
         flex: 1;
         overflow-y: auto;
@@ -293,7 +547,7 @@
         color: var(--text-tertiary);
     }
 
-/* ---------- Row ellipsis button (subject/session rows) + its side flyout,
+/* ---------- Row ellipsis button (subject rows) + its side flyout,
    opened via openRowFlyout() in project.js. Mirrors the add-recording
    flyout's look, but built dynamically per-row and positioned with
    getBoundingClientRect() since rows live inside a scrolling list. ---------- */
@@ -314,8 +568,7 @@
         transition: opacity .12s ease, background-color .12s ease, color .12s ease;
     }
 
-.subject-item:hover .row-ellipsis-btn,
-    .session-item:hover .row-ellipsis-btn {
+.subject-item:hover .row-ellipsis-btn {
         opacity: 1;
     }
 
@@ -349,13 +602,11 @@
 
 /* scrollbar tidy-up, matches dark-panel scroll feel elsewhere in the app */
     #subjects-list::-webkit-scrollbar,
-    #sessions-list::-webkit-scrollbar,
     #recordings-list::-webkit-scrollbar {
         width: 6px;
     }
 
 #subjects-list::-webkit-scrollbar-thumb,
-    #sessions-list::-webkit-scrollbar-thumb,
     #recordings-list::-webkit-scrollbar-thumb {
         background-color: var(--border-strong);
         border-radius: 10px;
@@ -547,7 +798,7 @@ body.theme-light .subject-modal-overlay {
     }
 
 /* Replaces the old primary graph placeholder: a live log of the takes
-   captured during this modal session, newest at the top. */
+   captured during this modal visit, newest at the top. */
 .recording-log-box {
         flex: 0 0 65%;
         min-height: 0;

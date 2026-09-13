@@ -9,9 +9,15 @@ ddk_mean, recording_quality_mean/recording_quality_classification, and
 (once scored) a speech_motor_state block.
 
 The app's data model has since moved to subject_store.py +
-session_store.py + recording_store.py, with per-session summaries
-computed live on read (recording_store.compute_session_summary)
-instead of being written once and going stale.
+recording_store.py, with per-date-group summaries computed live on
+read (recording_store.compute_date_summary) instead of being written
+once and going stale. Sessions have been removed from the data model;
+one calendar-day date group (see project_paths.date_key) is now the
+"one point in time" unit this adapter builds off of, replacing what
+used to be one session per point. This is a minimal swap to keep this
+adapter and its three callers working -- the engine modules below
+(and whether a date group is really the right unit) haven't been
+revisited yet.
 
 This module is the ONLY bridge between the two: it builds
 assessment-shaped records on the fly from the new stores so the engine
@@ -23,7 +29,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from app import subject_store, session_store, recording_store
+from app import subject_store, recording_store
 from app.speech_motor_state import compute_speech_motor_state
 from app.quality_thresholds import (
     SCORE_5_STAR,
@@ -57,8 +63,8 @@ def _score_to_star_rating(score: Optional[float]) -> str:
     return "★☆☆☆☆"
 
 
-def build_assessment_record(project_id: str, session: Dict[str, Any], sex: str) -> Dict[str, Any]:
-    """Builds one assessment-shaped record for a single session: the
+def build_assessment_record(project_id: str, subject_id: str, date: str, sex: str) -> Dict[str, Any]:
+    """Builds one assessment-shaped record for a single date group: the
     input shape change_detector.py, trajectory_mapper.py, and
     baseline.py all read (patient_id, timestamp, vowel_mean/ddk_mean,
     recording_quality_mean/recording_quality_classification,
@@ -71,8 +77,7 @@ def build_assessment_record(project_id: str, session: Dict[str, Any], sex: str) 
     normalization. Callers should skip subjects without a recorded sex
     rather than pass a guess.
     """
-    session_id = session["session_id"]
-    summary = recording_store.compute_session_summary(project_id, session_id)
+    summary = recording_store.compute_date_summary(project_id, subject_id, date)
 
     rq_mean = summary.get("recording_quality_mean") or {}
     rating = _score_to_star_rating(summary.get("recording_quality_score_mean"))
@@ -92,9 +97,9 @@ def build_assessment_record(project_id: str, session: Dict[str, Any], sex: str) 
     )
 
     return {
-        "patient_id": session["subject_id"],
-        "session_id": session_id,
-        "timestamp": session.get("created_at"),
+        "patient_id": subject_id,
+        "date": date,
+        "timestamp": date,
         "vowel_mean": summary.get("vowel_mean", {}),
         "vowel_sd": summary.get("vowel_sd", {}),
         "ddk_mean": summary.get("ddk_mean", {}),
@@ -108,15 +113,16 @@ def build_assessment_record(project_id: str, session: Dict[str, Any], sex: str) 
     }
 
 
-def build_trial_scores(project_id: str, session_id: str, task: str, sex: str) -> List[Dict[str, Any]]:
-    """Per-trial motor-state scores for one task within a session, in
+def build_trial_scores(project_id: str, subject_id: str, date: str, task: str, sex: str) -> List[Dict[str, Any]]:
+    """Per-trial motor-state scores for one task within a date group, in
     capture order -- the input shape motor_fatigue_curve.analyze_fatigue_curve
     expects (trial_id, score, phase).
 
-    Unlike build_assessment_record (which scores a session-level mean/SD
+    Unlike build_assessment_record (which scores a date group's mean/SD
     across all its recordings), this scores each individual recording on
     its own, since fatigue analysis is specifically about the
-    trial-to-trial trajectory within a session, not the session average.
+    trial-to-trial trajectory within a date group, not the date group's
+    average.
 
     Simplification: there's currently no "rest period" concept anywhere
     in the data model (no field marks a recording as coming after a
@@ -132,7 +138,7 @@ def build_trial_scores(project_id: str, session_id: str, task: str, sex: str) ->
     Stability/Phonatory Control). Trials that score no domains at all
     are skipped rather than assigned a fabricated number.
     """
-    recordings = recording_store.get_recordings_for_session_task(project_id, session_id, task)
+    recordings = recording_store.get_recordings_for_subject_date_task(project_id, subject_id, date, task)
     recordings.sort(key=lambda r: r.get("created_at") or "")
 
     trials = []
@@ -167,9 +173,12 @@ def build_trial_scores(project_id: str, session_id: str, task: str, sex: str) ->
 
 def get_patient_assessment_history(project_id: str, subject_id: str) -> List[Dict[str, Any]]:
     """Chronological, assessment-shaped history for one subject, built
-    live from session_store + recording_store. Drop-in replacement for
-    the old assessment_store.load_assessments()-backed history lookup --
-    used by baseline.py (get_valid_patient_history), and available for
+    live from recording_store, grouped by calendar date (see
+    project_paths.date_key) -- one date group is now the "point in
+    time" unit, replacing the old one-session-per-point grouping.
+    Drop-in replacement for the old assessment_store.load_assessments()
+    -backed history lookup -- used by baseline.py
+    (get_valid_patient_history), and available for
     change_detector.analyze_patient_trajectory /
     trajectory_mapper.generate_time_bounded_trajectory, both of which
     just want a list of these records.
@@ -183,18 +192,18 @@ def get_patient_assessment_history(project_id: str, subject_id: str) -> List[Dic
     if sex not in VALID_SEX_CATEGORIES:
         return []
 
-    sessions = session_store.get_sessions_for_subject(project_id, subject_id)
-    sessions.sort(key=lambda s: s.get("created_at") or "")
+    recordings = recording_store.get_recordings_for_subject(project_id, subject_id)
+    dates = sorted({r["date"] for r in recordings if r.get("date")})
 
     records = []
-    for session in sessions:
-        summary = recording_store.compute_session_summary(project_id, session["session_id"])
+    for date in dates:
+        summary = recording_store.compute_date_summary(project_id, subject_id, date)
         if not summary.get("vowel_mean") and not summary.get("ddk_mean"):
-            # No extracted-feature recordings yet (e.g. a session that
-            # only has raw captures pending "Extract Features") --
-            # nothing for the engine to score, so skip rather than
-            # emit an all-null assessment.
+            # No extracted-feature recordings yet on this date (e.g.
+            # only raw captures pending "Extract Features") -- nothing
+            # for the engine to score, so skip rather than emit an
+            # all-null assessment.
             continue
-        records.append(build_assessment_record(project_id, session, sex))
+        records.append(build_assessment_record(project_id, subject_id, date, sex))
 
     return records

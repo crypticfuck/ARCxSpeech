@@ -147,8 +147,8 @@ function addDocListener(type, handler, options) {
 // serves this UI itself via StaticFiles, so no base URL/CORS setup is
 // needed here.
 
-// Every subject/session/recording endpoint now lives under one
-// project's namespace (/api/projects/{project_id}/...) -- built from the
+// Every subject/recording endpoint now lives under one project's
+// namespace (/api/projects/{project_id}/...) -- built from the
 // `projectId` argument passed into this factory (see
 // createProjectView(container, projectId) above), not a page-global
 // constant read from the URL, so each instance talks to its own project
@@ -198,37 +198,33 @@ const api = {
     deleteSubject: (subjectId) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}`, { method: "DELETE" }),
     getSubjectSummary: (subjectId) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/summary`),
 
-    getSessions: (subjectId) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/sessions`),
-    createSession: (subjectId, payload) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/sessions`, { method: "POST", body: JSON.stringify(payload) }),
-    getSessionDetail: (sessionId) => apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}`),
-    deleteSession: (sessionId) => apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" }),
-
-    getRecordings: (sessionId) => apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}/recordings`),
-    getRecordingSpectrogram: (sessionId, recordingId) => apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}/recordings/${encodeURIComponent(recordingId)}/spectrogram`),
-    getRecordingDdkContour: (sessionId, recordingId) => apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}/recordings/${encodeURIComponent(recordingId)}/ddk-contour`),
+    getRecordings: (subjectId) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/recordings`),
+    getRecordingsSummary: (recordingIds) => apiFetch(`${API_BASE}/recordings/summary`, { method: "POST", body: JSON.stringify({ recording_ids: recordingIds }) }),
+    getRecordingSpectrogram: (subjectId, recordingId) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/recordings/${encodeURIComponent(recordingId)}/spectrogram`),
+    getRecordingDdkContour: (subjectId, recordingId) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/recordings/${encodeURIComponent(recordingId)}/ddk-contour`),
     // Warms up the serial connection (the ~2s device settle time) ahead
     // of the timed capture, so that settling happens during the visible
     // pre-record countdown instead of after the recording request lands
     // -- see runPreRecordCountdown/startTaskRecording below. NOT
     // project-scoped: there's exactly one serial device on the machine
-    // regardless of which project's session ends up owning the trial.
+    // regardless of which project's recording ends up owning the trial.
     prepareRecording: () => apiFetch("/api/recording/prepare", { method: "POST" }),
     releaseRecordingPrepare: (token) => apiFetch(`/api/recording/prepare/${encodeURIComponent(token)}`, { method: "DELETE" }),
-    addLiveRecording: (sessionId, task, duration, prepareToken) => apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}/recordings`, {
+    addLiveRecording: (subjectId, task, duration, prepareToken) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/recordings`, {
         method: "POST",
         body: JSON.stringify({ task, duration, prepare_token: prepareToken || null }),
     }),
-    uploadRecordings: (sessionId, task, files) => {
+    uploadRecordings: (subjectId, task, files) => {
         const formData = new FormData();
         formData.append("task", task);
         Array.from(files).forEach(file => formData.append("files", file));
-        return apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}/recordings/upload`, {
+        return apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/recordings/upload`, {
             method: "POST",
             body: formData,
         });
     },
-    deleteRecording: (sessionId, recordingId) => apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}/recordings/${encodeURIComponent(recordingId)}`, { method: "DELETE" }),
-    extractSessionFeatures: (sessionId) => apiFetch(`${API_BASE}/sessions/${encodeURIComponent(sessionId)}/recordings/extract`, { method: "POST" }),
+    deleteRecording: (subjectId, recordingId) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/recordings/${encodeURIComponent(recordingId)}`, { method: "DELETE" }),
+    extractSubjectFeatures: (subjectId) => apiFetch(`${API_BASE}/subjects/${encodeURIComponent(subjectId)}/recordings/extract`, { method: "POST" }),
     // Builds the playback URL for an <audio>/fetch src -- pulled into a
     // shared helper since the same "/api/projects/{id}/recordings/audio
     // ?path=..." shape gets built inline in a couple of places below.
@@ -238,8 +234,7 @@ const api = {
 // ================= Data (populated from the backend) =================
 
 let SUBJECTS = [];
-const SESSIONS = {};   // subjectId -> array of mapped session rows
-const RECORDINGS = {}; // sessionId -> array of mapped recording rows
+const RECORDINGS = {}; // subjectId -> array of mapped recording rows
 
 // ---- Row mapping: backend JSON -> the shape the UI already renders ----
 
@@ -269,19 +264,6 @@ function mapSubject(s) {
     };
 }
 
-function mapSession(sess) {
-    const created = sess.created_at ? new Date(sess.created_at) : null;
-    return {
-        id: sess.session_id,
-        subjectId: sess.subject_id,
-        name: sess.name,
-        date: created && !Number.isNaN(created.getTime()) ? formatSessionDate(created) : "",
-        _raw: sess,
-        _summary: null,
-        _summaryLoading: false,
-    };
-}
-
 const RECORDING_TASK_DISPLAY_NAME = {
     "Sustained Vowel": "Sustained Vowel /a/",
     "DDK": "DDK /pa-ta-ka/",
@@ -291,8 +273,9 @@ function mapRecording(row) {
     const created = row.created_at ? new Date(row.created_at) : null;
     return {
         id: row.recording_id,
-        sessionId: row.session_id,
+        subjectId: row.subject_id,
         name: RECORDING_TASK_DISPLAY_NAME[row.task] || row.task,
+        date: created && !Number.isNaN(created.getTime()) ? formatRecordingDate(created) : "",
         time: created && !Number.isNaN(created.getTime()) ? formatRecordingTime(created) : "",
         type: row.source === "uploaded" ? "uploaded" : "built-in",
         task: row.task,
@@ -314,45 +297,30 @@ async function loadSubjects() {
     renderSubjects();
 }
 
-async function loadSessionsForSubject(subject, { force = false } = {}) {
+async function loadRecordingsForSubject(subject, { force = false } = {}) {
     if (!subject) return;
-    if (!force && SESSIONS[subject.id]) return;
-    // Don't quietly pull in a fresh session list just because this subject
-    // hasn't been opened in this tab before -- if another tab's change is
-    // still pending (unrefreshed), that would let new data appear without
-    // ever clicking Refresh, defeating the whole point of the banner (see
-    // the cross-tab sync comment above). Leave it unloaded; renderSessions()
-    // shows a "refresh to load" placeholder instead of the real list until
-    // the user actually refreshes.
+    if (!force && RECORDINGS[subject.id]) return;
+    // Don't quietly pull in a fresh recordings list just because this
+    // subject hasn't been opened in this tab before -- if another tab's
+    // change is still pending (unrefreshed), that would let new data
+    // appear without ever clicking Refresh, defeating the whole point of
+    // the banner (see the cross-tab sync comment above). Leave it
+    // unloaded; renderRecordings() shows a "refresh to load" placeholder
+    // instead of the real list until the user actually refreshes.
     if (!force && pendingCrossTabChange) return;
     try {
-        const rows = await api.getSessions(subject.id);
-        SESSIONS[subject.id] = rows.map(mapSession);
-    } catch (err) {
-        console.error(err);
-        showToast("Couldn't load sessions.");
-        SESSIONS[subject.id] = SESSIONS[subject.id] || [];
-    }
-}
-
-async function loadRecordingsForSession(session, { force = false } = {}) {
-    if (!session) return;
-    if (!force && RECORDINGS[session.id]) return;
-    // Same reasoning as loadSessionsForSubject above.
-    if (!force && pendingCrossTabChange) return;
-    try {
-        const rows = await api.getRecordings(session.id);
-        RECORDINGS[session.id] = rows.map(mapRecording);
+        const rows = await api.getRecordings(subject.id);
+        RECORDINGS[subject.id] = rows.map(mapRecording);
     } catch (err) {
         console.error(err);
         showToast("Couldn't load recordings.");
-        RECORDINGS[session.id] = RECORDINGS[session.id] || [];
+        RECORDINGS[subject.id] = RECORDINGS[subject.id] || [];
     }
 }
 
 // ================= Cross-tab sync (same project open in two tabs) =================
 // Each project tab is its own createProjectView instance with its own
-// SUBJECTS/SESSIONS/RECORDINGS copy -- there was previously no signal at
+// SUBJECTS/RECORDINGS copy -- there was previously no signal at
 // all when one tab's create/delete changed the backend data another
 // open tab of the SAME project was showing, so the other tab just went
 // stale until closed and reopened. broadcastProjectDataChanged() fires a
@@ -364,7 +332,7 @@ async function loadRecordingsForSession(session, { force = false } = {}) {
 // reference for any row that already existed, only updating its fields
 // in place (and preserving preserveKeys, e.g. the cached analysis
 // _summary) -- rather than just replacing the array wholesale. That
-// matters because selectedSubject/selectedSession/selectedRecording and
+// matters because selectedSubject/selectedRecording and
 // analysisTargetRef are all compared by reference elsewhere in this file
 // (see isAnalysisTarget's comment above), so a wholesale replace would
 // silently un-highlight/un-target whatever the user had selected even
@@ -397,7 +365,6 @@ async function refreshSubjectsList() {
     // does for a local delete.
     if (selectedSubject && !SUBJECTS.includes(selectedSubject)) {
         selectedSubject = null;
-        selectedSession = null;
         selectedRecording = null;
         currentLevel = "subjects";
         renderLevelChrome();
@@ -408,70 +375,44 @@ async function refreshSubjectsList() {
     renderSubjects();
 }
 
-async function refreshSessionsList(subject) {
+async function refreshRecordingsList(subject) {
     if (!subject) return;
     let rows;
     try {
-        rows = await api.getSessions(subject.id);
+        rows = await api.getRecordings(subject.id);
     } catch (err) {
         console.error(err);
         return;
     }
-    const existing = SESSIONS[subject.id] || [];
-    SESSIONS[subject.id] = mergeListById(existing, rows, mapSession, ["_summary", "_summaryLoading"]);
+    const existing = RECORDINGS[subject.id] || [];
+    RECORDINGS[subject.id] = mergeListById(existing, rows, mapRecording, []);
 
     if (selectedSubject !== subject) return;
-    if (selectedSession && !SESSIONS[subject.id].includes(selectedSession)) {
-        selectedSession = null;
-        selectedRecording = null;
-        currentLevel = "sessions";
-        renderLevelChrome();
-    }
-    if (analysisTargetType === "session" && analysisTargetRef && !SESSIONS[subject.id].includes(analysisTargetRef)) {
-        setAnalysisTarget(null, null);
-    }
-    renderSessions();
-}
-
-async function refreshRecordingsList(session) {
-    if (!session) return;
-    let rows;
-    try {
-        rows = await api.getRecordings(session.id);
-    } catch (err) {
-        console.error(err);
-        return;
-    }
-    const existing = RECORDINGS[session.id] || [];
-    RECORDINGS[session.id] = mergeListById(existing, rows, mapRecording, []);
-
-    if (selectedSession !== session) return;
-    if (selectedRecording && !RECORDINGS[session.id].includes(selectedRecording)) {
+    if (selectedRecording && !RECORDINGS[subject.id].includes(selectedRecording)) {
         selectedRecording = null;
     }
-    if (analysisTargetType === "recording" && analysisTargetRef && !RECORDINGS[session.id].includes(analysisTargetRef)) {
+    if (analysisTargetType === "recording" && analysisTargetRef && !RECORDINGS[subject.id].includes(analysisTargetRef)) {
         setAnalysisTarget(null, null);
     }
     renderRecordings();
 }
 
 // Re-syncs whatever this tab currently has loaded: always the subjects
-// list, plus the sessions/recordings lists for whatever's currently
+// list, plus the recordings list for whatever subject is currently
 // selected (drilling further down is what would otherwise show stale
 // data after another tab's change), plus the cached mean/SD analysis
-// summary behind the active session/subject analysis target, if any.
-// That summary (ref._summary, see ensureAnalysisSummary) is what the
-// graphs/Values widgets for a session or subject target actually read
-// -- refreshing the raw lists above doesn't touch it, so without this
-// the lists would update but the open graphs would keep showing
-// numbers from before another tab's change. Same-tab changes already
-// invalidate it via invalidateSessionAnalysisCache(); this is that
-// same invalidation for the cross-tab case.
+// summary behind the active subject analysis target, if any. That
+// summary (ref._summary, see ensureAnalysisSummary) is what the
+// graphs/Values widgets for a subject target actually read --
+// refreshing the raw lists above doesn't touch it, so without this the
+// lists would update but the open graphs would keep showing numbers
+// from before another tab's change. Same-tab changes already invalidate
+// it via invalidateSubjectAnalysisCache(); this is that same
+// invalidation for the cross-tab case.
 async function refreshProjectData() {
     await refreshSubjectsList();
-    if (selectedSubject) await refreshSessionsList(selectedSubject);
-    if (selectedSession) await refreshRecordingsList(selectedSession);
-    if (analysisTargetRef && (analysisTargetType === "session" || analysisTargetType === "subject")) {
+    if (selectedSubject) await refreshRecordingsList(selectedSubject);
+    if (analysisTargetRef && analysisTargetType === "subject") {
         analysisTargetRef._summary = null;
         await ensureAnalysisSummary(analysisTargetType, analysisTargetRef);
     }
@@ -521,9 +462,9 @@ async function runManualRefresh() {
     if (projectDataChangedBanner) projectDataChangedBanner.style.display = "none";
     pendingCrossTabChange = false;
     await refreshProjectData();
-    // Lists (subjects/sessions/recordings) are covered by
+    // Lists (subjects/recordings) are covered by
     // refreshProjectData() above; the pinboard's own graph/Values/
-    // Quality widgets read from RECORDINGS/SESSIONS at render time
+    // Quality widgets read from RECORDINGS at render time
     // but only redraw when told to -- this is the same call the
     // same-tab "recording just added" path already uses for that.
     if (typeof refreshAllWidgetValuesFn === "function") refreshAllWidgetValuesFn();
@@ -534,7 +475,7 @@ if (manualRefreshBtn) {
     manualRefreshBtn.addEventListener("click", () => {
         // A change from another tab is still pending (whether the banner
         // was dismissed or just never noticed) -- warn before pulling it
-        // in, since refreshing can change what's on screen (session/
+        // in, since refreshing can change what's on screen (subject/
         // recording lists, open graphs) out from under the user. Reuses
         // the delete-confirm modal with a non-destructive label/style
         // (see openConfirmDelete's options param).
@@ -568,18 +509,16 @@ if (projectDataChangedDismissBtn) {
     });
 }
 
-// Lazily fetches the mean/SD summary behind a subject/session analysis
-// target (see setAnalysisTarget below), caching it on the ref itself so
+// Lazily fetches the mean/SD summary behind a subject analysis target
+// (see setAnalysisTarget below), caching it on the ref itself so
 // re-picking the same target doesn't refetch. Values widgets read
 // straight from ref._summary once it lands -- see getWidgetValuesSync
 // inside the pinboard IIFE further down.
 async function ensureAnalysisSummary(type, ref) {
-    if (!ref || ref._summary || ref._summaryLoading) return;
+    if (!ref || ref._summary || ref._summaryLoading || type !== "subject") return;
     ref._summaryLoading = true;
     try {
-        ref._summary = type === "subject"
-            ? await api.getSubjectSummary(ref.id)
-            : await api.getSessionDetail(ref.id);
+        ref._summary = await api.getSubjectSummary(ref.id);
     } catch (err) {
         console.error(err);
         showToast("Couldn't load analysis summary.");
@@ -590,28 +529,16 @@ async function ensureAnalysisSummary(type, ref) {
 }
 
 // Clears the cached mean/SD summary (see ensureAnalysisSummary above) for
-// a session whose recordings just changed (added, uploaded, or deleted),
-// and for the subject that owns it -- a subject's summary is aggregated
-// across every one of its sessions, so it's stale too whenever any of
-// them changes. If the session or its owning subject is the currently
-// active analysis target, immediately re-fetches so open Values widgets
-// pick up the new numbers without the user having to reselect anything.
-function invalidateSessionAnalysisCache(sessionId) {
-    let ownerSubjectId = null;
-    for (const subjectId in SESSIONS) {
-        const sessionRef = (SESSIONS[subjectId] || []).find((s) => s.id === sessionId);
-        if (sessionRef) {
-            sessionRef._summary = null;
-            ownerSubjectId = subjectId;
-            break;
-        }
-    }
-    if (ownerSubjectId) {
-        const subjectRef = SUBJECTS.find((s) => s.id === ownerSubjectId);
-        if (subjectRef) subjectRef._summary = null;
-    }
-    if (analysisTargetRef && !analysisTargetRef._summary &&
-        (analysisTargetType === "session" || analysisTargetType === "subject")) {
+// a subject whose recordings just changed (added, uploaded, or deleted)
+// -- a subject's summary is aggregated across every recording it has, so
+// it's stale whenever any of them changes. If that subject is the
+// currently active analysis target, immediately re-fetches so open
+// Values widgets pick up the new numbers without the user having to
+// reselect anything.
+function invalidateSubjectAnalysisCache(subjectId) {
+    const subjectRef = SUBJECTS.find((s) => s.id === subjectId);
+    if (subjectRef) subjectRef._summary = null;
+    if (analysisTargetRef && !analysisTargetRef._summary && analysisTargetType === "subject") {
         ensureAnalysisSummary(analysisTargetType, analysisTargetRef);
     }
 }
@@ -657,14 +584,88 @@ function showToast(message, opts = {}) {
 
 // ================= State =================
 
-let currentSort = "name";
-let currentLevel = "subjects"; // "subjects" | "sessions" | "recordings"
+let currentSort = "date";
+let currentLevel = "subjects"; // "subjects" | "recordings"
 let selectedSubject = null;
-let selectedSession = null;
 let selectedRecording = null;
 
+// Multi-select state for the recording-select dropdown's left-hand dots
+// (see renderRecordings() below) -- separate from selectedRecording/
+// analysisTargetRef above, since picking recordings this way doesn't
+// set the single "active" target until "Continue" (below) is pressed.
+// Keyed by recording id (mapRecording()'s .id, i.e. recording_id).
+let multiSelectedRecordingIds = new Set();
+
+const recordingMultiselectBar = container.querySelector("#recording-multiselect-bar");
+const recordingMultiselectCount = container.querySelector("#recording-multiselect-count");
+const recordingMultiselectContinueBtn = container.querySelector("#recording-multiselect-continue-btn");
+
+function updateRecordingMultiselectBar() {
+    if (!recordingMultiselectBar) return;
+    const n = multiSelectedRecordingIds.size;
+    // The bar only makes sense while the dropdown itself is open -- it's
+    // the "commit these dot picks" affordance for that dropdown, not a
+    // standalone indicator of the active target. Without this check it
+    // pops back up after the dropdown closes any time the committed
+    // target still has recordings selected (e.g. right after Continue),
+    // since closing re-renders the list and recomputes this.
+    const dropdownOpen = recordingSelectDropdown && recordingSelectDropdown.classList.contains("open");
+    const show = n > 0 && currentLevel === "recordings" && dropdownOpen;
+    recordingMultiselectBar.classList.toggle("open", show);
+    if (show && recordingMultiselectCount) {
+        recordingMultiselectCount.textContent = `Analyze ${n} selected recording${n === 1 ? "" : "s"}`;
+    }
+}
+
+// Resets the dropdown's left-hand multi-select dots to match whatever is
+// actually the committed "recordings" analysis target (or nothing, if the
+// active target isn't a multi-recording one). Dot clicks made in the
+// dropdown are only tentative until "Continue" is pressed -- this is what
+// throws away un-committed tentative changes: called whenever the
+// dropdown is closed without hitting Continue (see
+// closeRecordingSelectDropdown), and whenever the active analysis target
+// changes for any other reason (see setAnalysisTarget), so a single-
+// recording or subject pick clears dots left over from a previous
+// multi-select, instead of leaving them checked for something that's no
+// longer being analyzed.
+function syncMultiSelectFromTarget() {
+    const committedIds = (analysisTargetType === "recordings" && analysisTargetRef && analysisTargetRef.recordingIds)
+        ? analysisTargetRef.recordingIds
+        : [];
+    multiSelectedRecordingIds = new Set(committedIds);
+}
+
+if (recordingMultiselectContinueBtn) {
+    recordingMultiselectContinueBtn.addEventListener("click", async () => {
+        const ids = Array.from(multiSelectedRecordingIds);
+        if (!ids.length) return;
+        recordingMultiselectContinueBtn.disabled = true;
+        recordingMultiselectContinueBtn.textContent = "Loading…";
+        try {
+            const summary = await api.getRecordingsSummary(ids);
+            const ref = { id: null, _summary: summary, recordingIds: ids };
+            // Not cleared here -- leaving the same recordings checked means
+            // reopening the dropdown after analyzing shows exactly what's
+            // currently the active target, instead of an empty picker the
+            // user has to reselect from scratch. (setAnalysisTarget below
+            // re-syncs the dots from analysisTargetRef.recordingIds anyway,
+            // which for this ref is just `ids`, so this is a no-op stay.)
+            renderRecordings();
+            selectRecordingLabel.textContent = `${ids.length} Recording${ids.length === 1 ? "" : "s"}`;
+            setAnalysisTarget("recordings", ref);
+            closeRecordingSelectDropdown();
+        } catch (err) {
+            console.error(err);
+            showToast(err.message || "Couldn't load the selected recordings.");
+        } finally {
+            recordingMultiselectContinueBtn.disabled = false;
+            recordingMultiselectContinueBtn.textContent = "Continue";
+        }
+    });
+}
+
 // What the pinboard is currently analyzing — set whenever the user picks
-// "Analyze Subject" / "Analyze Session" from a row flyout, or clicks a
+// "Analyze Subject" from a row flyout, or clicks a
 // recording in the recordings list. Quality widgets only make sense for a
 // single recording (they surface per-take signal-quality metrics), so the
 // Quality button is hidden unless a recording is the active analysis target.
@@ -725,11 +726,11 @@ addDocListener("keydown", (e) => {
 // IIFE) exactly -- that's what addGraphWidget()/createWidget() key off of.
 // Spectrogram, Pitch Waveform, and DDK Waveform only render a real single
 // recording's waveform/STFT, so they're left out of every *_multi/mixed
-// context (session/subject targets) -- see the note by
+// context (subject targets) -- see the note by
 // updateWidgetButtonsAvailability() for the same rule applied elsewhere.
 // MDVP Profile and Vowel Space are the same story: each is a single
 // sustained-vowel trial's own voice print/tongue position, not
-// something that's coherent averaged across a session/subject's
+// something that's coherent averaged across a subject's
 // several recordings, so they're also left out of every *_multi/mixed
 // context and only offered in sustained_single. The across-recordings
 // view of vowel-space data is a genuinely different graph (Vowel Space
@@ -790,7 +791,7 @@ function getSidebarContextKey() {
         return null;
     }
 
-    // Session/subject target -- "multi" once there's more than one
+    // Subject target -- "multi" once there's more than one
     // trial of that task type to show trends across.
     const summary = analysisTargetRef && analysisTargetRef._summary;
     if (hasSustained) {
@@ -873,28 +874,32 @@ if (viewToggleSidebarBtn) {
     });
 }
 
-let analysisTargetType = null; // "subject" | "session" | "recording" | null
+let analysisTargetType = null; // "subject" | "recording" | "recordings" | null
 
-// The actual subject/session/recording object behind analysisTargetType —
+// The actual subject/recording object (or multi-recording ref) behind
+// analysisTargetType —
 // tracked separately so re-picking the exact same target (e.g. reopening
 // the select-recording dropdown and clicking the same recording again)
 // can be detected and treated as a no-op instead of re-clearing the board.
 let analysisTargetRef = null;
 
 function setAnalysisTarget(type, ref) {
-    // Re-selecting the same subject/session/recording that's already the
+    // Re-selecting the same subject/recording that's already the
     // active analysis target shouldn't do anything — in particular it
     // shouldn't blow away widgets the user has open.
     if (type === analysisTargetType && ref === analysisTargetRef) return;
 
     analysisTargetType = type;
     analysisTargetRef = ref;
+    // Whatever's checked in the recording-select dropdown's multi-select
+    // dots should always reflect this new target, not whatever was
+    // tentatively clicked before it changed (see syncMultiSelectFromTarget).
+    syncMultiSelectFromTarget();
     updateWidgetButtonsAvailability();
-    // Refresh the highlight in all three lists — whichever one is on
+    // Refresh the highlight in both lists — whichever one is on
     // screen (or gets navigated back to later) should show the new
     // target, not wherever the user last clicked to browse.
     renderSubjects();
-    renderSessions();
     renderRecordings();
     if (typeof clearPinboardWidgetsFn === "function") {
         clearPinboardWidgetsFn();
@@ -904,10 +909,10 @@ function setAnalysisTarget(type, ref) {
     if (!type) {
         selectRecordingLabel.textContent = "Select Recording";
     }
-    // Subject/session targets show a live-computed mean±SD summary
-    // pulled from the backend on demand -- kick that fetch off now so
-    // it's usually already cached by the time the user clicks "Values".
-    if (type === "subject" || type === "session") {
+    // Subject targets show a live-computed mean±SD summary pulled from
+    // the backend on demand -- kick that fetch off now so it's usually
+    // already cached by the time the user clicks "Values".
+    if (type === "subject") {
         ensureAnalysisSummary(type, ref);
     }
 }
@@ -915,7 +920,7 @@ function setAnalysisTarget(type, ref) {
 // When a single recording is the analysis target, its task type (sustained
 // vowel vs. DDK) is already known, so the Values dropdown is unnecessary —
 // clicking "Values" just drops that one widget straight onto the board. For
-// a subject or session target (or a custom/uploaded recording whose task
+// a subject target (or a custom/uploaded recording whose task
 // type isn't one of the two built-ins), the dropdown is still needed so the
 // user can pick.
 function getDirectRecordingValueType() {
@@ -948,8 +953,8 @@ function getDirectRecordingValueType() {
 // current analysis target, so task-specific graphs/widgets can be
 // hidden instead of showing empty or misleading data:
 //   - a single recording only ever has one task type
-//   - a session/subject may have Sustained recordings, DDK
-//     recordings, or both — in which case everything shows
+//   - a subject may have Sustained recordings, DDK recordings, or
+//     both — in which case everything shows
 function getAvailableTaskTypesForTarget() {
     if (analysisTargetType === "recording") {
         if (!selectedRecording) return new Set();
@@ -957,7 +962,7 @@ function getAvailableTaskTypesForTarget() {
         return direct ? new Set([direct]) : new Set(["Sustained", "DDK"]);
     }
 
-    if (analysisTargetType === "session" || analysisTargetType === "subject") {
+    if (analysisTargetType === "subject" || analysisTargetType === "recordings") {
         const summary = analysisTargetRef && analysisTargetRef._summary;
         // Summary not loaded yet -- don't hide anything while we wait,
         // to avoid a flash of missing buttons; ensureAnalysisSummary()
@@ -986,14 +991,14 @@ function updateWidgetButtonsAvailability() {
     const qualityWrap = container.querySelector("#quality-type-wrap");
     const valuesChevron = container.querySelector("#add-values-chevron");
 
-    // Nothing to add widgets for until a subject, session, or recording
+    // Nothing to add widgets for until a subject or recording
     // has actually been chosen as the analysis target.
     const hasTarget = analysisTargetType !== null;
 
     // Graph buttons are additionally filtered by task type (see
     // getAvailableTaskTypesForTarget()/isTaskTypeVisible() above) --
     // e.g. Formants only makes sense for Sustained Vowel data, so it
-    // stays hidden while a DDK-only recording/session/subject is being
+    // stays hidden while a DDK-only recording/subject is being
     // analyzed. graphTaskTypes (declared near the top of this factory) is
     // populated by the pinboard IIFE from GRAPH_RENDERERS, the single
     // source of truth for each graph's taskType -- see the note there
@@ -1015,7 +1020,7 @@ function updateWidgetButtonsAvailability() {
     // DDK Waveform, Pitch Waveform, and Spectrogram additionally only
     // make sense against a single recording -- each renders one real
     // audio clip's waveform/STFT, which has no coherent meaning
-    // aggregated across a session/subject's several trials (unlike e.g.
+    // aggregated across a subject's several trials (unlike e.g.
     // Values/Quality, which are fine averaging scalar stats). Restrict
     // them the same way Quality/the playback bar are restricted above.
     ["add-ddk-waveform-btn", "add-pitch-waveform-btn", "add-spectrogram-btn"].forEach((id) => {
@@ -1027,7 +1032,7 @@ function updateWidgetButtonsAvailability() {
 
     // Filter the Values dropdown's Sustained/DDK options the same way --
     // only offer picking a task type that's actually present for a
-    // session/subject target (a single recording never shows this
+    // subject target (a single recording never shows this
     // dropdown at all, see getDirectRecordingValueType()/valuesChevron
     // below).
     if (hasTarget) {
@@ -1066,27 +1071,25 @@ function updateWidgetButtonsAvailability() {
     if (typeof renderSidebarContent === "function") renderSidebarContent();
 }
 
-// The subjects/sessions/recordings lists double as a drill-down browser
-// (selectedSubject/selectedSession/selectedRecording just track where the
-// user has navigated to, e.g. to peek at another session's recordings)
-// and as the picker for the active analysis target. The "selected"
-// highlight must reflect the latter, not wherever browsing left off —
-// otherwise clicking into a session/recording to look around and then
-// going back leaves the wrong row highlighted. Compare by reference
-// (not id) since session ids repeat across subjects.
+// The subjects/recordings lists double as a drill-down browser
+// (selectedSubject/selectedRecording just track where the
+// user has navigated to) and as the picker for the active analysis
+// target. The "selected" highlight must reflect the latter, not
+// wherever browsing left off — otherwise clicking into a recording to
+// look around and then going back leaves the wrong row highlighted.
+// Compare by reference (not id) since recording ids are unique but
+// subjects could otherwise coincidentally match.
 function isAnalysisTarget(type, obj) {
     return analysisTargetType === type && analysisTargetRef === obj;
 }
 
 const subjectsListEl = container.querySelector("#subjects-list");
-const sessionsListEl = container.querySelector("#sessions-list");
 const recordingsListEl = container.querySelector("#recordings-list");
 
 const listTitleEl = container.querySelector("#list-title");
 const listBackBtn = container.querySelector("#list-back-btn");
 const sortTriggerWrap = container.querySelector("#sort-trigger-wrap");
 const addSubjectBtn = container.querySelector("#add-subject-btn");
-const addSessionBtn = container.querySelector("#add-session-btn");
 const addRecordingWrap = container.querySelector("#add-recording-wrap");
 const addRecordingBtn = container.querySelector("#add-recording-btn");
 
@@ -1099,52 +1102,44 @@ function initials(name) {
 function sortedSubjects() {
     let list = SUBJECTS.slice();
     if (currentSort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
-    if (currentSort === "date") list.sort((a, b) => new Date(b.added) - new Date(a.added));
+    if (currentSort === "date") list.sort((a, b) => new Date((b._raw && b._raw.createdAt) || b.added) - new Date((a._raw && a._raw.createdAt) || a.added));
     if (currentSort === "age") list.sort((a, b) => a.age - b.age);
     return list;
 }
 
 function renderLevelChrome() {
     const atSubjects = currentLevel === "subjects";
-    const atSessions = currentLevel === "sessions";
     const atRecordings = currentLevel === "recordings";
 
     subjectsListEl.style.display = atSubjects ? "" : "none";
-    sessionsListEl.style.display = atSessions ? "" : "none";
     recordingsListEl.style.display = atRecordings ? "" : "none";
 
     listBackBtn.style.display = atSubjects ? "none" : "flex";
     sortTriggerWrap.style.display = atSubjects ? "flex" : "none";
     addSubjectBtn.style.display = atSubjects ? "flex" : "none";
-    addSessionBtn.style.display = atSessions ? "flex" : "none";
     addRecordingWrap.style.display = atRecordings ? "flex" : "none";
     if (!atRecordings) closeAddRecordingFlyout();
 
     if (atSubjects) {
         listTitleEl.textContent = "Subjects";
-    } else if (atSessions) {
-        listTitleEl.textContent = "Sessions" + (selectedSubject ? " \u2014 " + selectedSubject.name : "");
     } else {
-        listTitleEl.textContent = "Recordings" + (selectedSession ? " \u2014 " + selectedSession.name : "");
+        listTitleEl.textContent = "Recordings" + (selectedSubject ? " \u2014 " + selectedSubject.name : "");
     }
 }
 
 listBackBtn.addEventListener("click", () => {
     if (currentLevel === "recordings") {
-        currentLevel = "sessions";
-        selectedRecording = null;
-    } else if (currentLevel === "sessions") {
         currentLevel = "subjects";
+        selectedRecording = null;
     }
     renderLevelChrome();
-    renderSessions();
     renderRecordings();
 });
 
-// ================= Row options flyout (ellipsis button on subject/session
+// ================= Row options flyout (ellipsis button on subject
 // rows) -- opens a small menu to the side of the button, mirroring the
 // add-recording flyout's sideways-panel style but built dynamically since
-// there's one row per subject/session rather than a single static trigger. =================
+// there's one row per subject rather than a single static trigger. =================
 
 let rowFlyoutEl = null;
 
@@ -1206,8 +1201,8 @@ addDocListener("keydown", (e) => {
     if (e.key === "Escape") closeRowFlyout();
 });
 
-// ================= Delete-confirmation modal (shared by subject and
-// session row deletion) =================
+// ================= Delete-confirmation modal (used by subject row
+// deletion) =================
 
 const confirmDeleteOverlay = container.querySelector("#confirmDeleteOverlay");
 const confirmDeleteTitleEl = container.querySelector("#confirmDeleteTitle");
@@ -1288,7 +1283,7 @@ function renderSubjects() {
                 { label: "Delete Subject", danger: true, onClick: () => {
                     openConfirmDelete(
                         "Delete Subject",
-                        `This will permanently delete "${s.name}" and all of their sessions and recordings. This can't be undone.`,
+                        `This will permanently delete "${s.name}" and all of their recordings. This can't be undone.`,
                         () => deleteSubject(s)
                     );
                 } },
@@ -1309,11 +1304,10 @@ async function deleteSubject(s) {
 
     const idx = SUBJECTS.findIndex(x => x.id === s.id);
     if (idx !== -1) SUBJECTS.splice(idx, 1);
-    delete SESSIONS[s.id];
+    delete RECORDINGS[s.id];
 
     if (selectedSubject && selectedSubject.id === s.id) {
         selectedSubject = null;
-        selectedSession = null;
         selectedRecording = null;
         currentLevel = "subjects";
         renderLevelChrome();
@@ -1323,7 +1317,6 @@ async function deleteSubject(s) {
     }
 
     renderSubjects();
-    renderSessions();
     renderRecordings();
     showToast(`Deleted ${s.name}.`);
     broadcastProjectDataChanged();
@@ -1331,144 +1324,37 @@ async function deleteSubject(s) {
 
 async function selectSubject(s) {
     selectedSubject = s;
-    selectedSession = null;
     selectedRecording = null;
-    currentLevel = "sessions";
+    currentLevel = "recordings";
     renderSubjects();
     renderLevelChrome();
-    if (!SESSIONS[s.id]) {
-        sessionsListEl.innerHTML = `<div class="box-empty"><div class="empty-title">Loading&hellip;</div></div>`;
+    if (!RECORDINGS[s.id]) {
+        recordingsListEl.innerHTML = `<div class="box-empty"><div class="empty-title">Loading&hellip;</div></div>`;
     }
     renderRecordings();
-    await loadSessionsForSubject(s);
+    await loadRecordingsForSubject(s);
     // The user may have navigated elsewhere while this was in flight.
-    if (selectedSubject === s) renderSessions();
+    if (selectedSubject === s) renderRecordings();
 }
 
-function renderSessions() {
-    sessionsListEl.innerHTML = "";
+function renderRecordings() {
+    updateRecordingMultiselectBar();
+    recordingsListEl.innerHTML = "";
 
     if (!selectedSubject) {
-        sessionsListEl.innerHTML = `<div class="box-empty">
+        recordingsListEl.innerHTML = `<div class="box-empty">
             <div class="empty-title">No subject selected</div>
-            <div class="empty-desc">Pick a subject to see their sessions.</div>
+            <div class="empty-desc">Pick a subject to see their recordings.</div>
         </div>`;
         return;
     }
 
-    const loadedSessions = SESSIONS[selectedSubject.id];
-    // Not loaded because loadSessionsForSubject deliberately skipped
+    const loadedRecordings = RECORDINGS[selectedSubject.id];
+    // Not loaded because loadRecordingsForSubject deliberately skipped
     // fetching (pendingCrossTabChange -- see there) rather than because a
     // fetch is still in flight (selectSubject already resolves that case
     // by the time this runs -- see its own comment). Show a real message
     // instead of just going blank, so it's clear more data is available.
-    if (!loadedSessions && pendingCrossTabChange) {
-        sessionsListEl.innerHTML = `<div class="box-empty">
-            <div class="empty-title">Refresh to load</div>
-            <div class="empty-desc">Another tab made changes to this project. Refresh to see them.</div>
-        </div>`;
-        return;
-    }
-
-    const sessions = loadedSessions || [];
-    sessions.forEach(sess => {
-        const el = document.createElement("div");
-        el.className = "session-item" + (isAnalysisTarget("session", sess) ? " selected" : "");
-        el.innerHTML = `
-            <div class="session-info">
-                <div class="session-name">${sess.name}</div>
-                <div class="session-date">${sess.date}</div>
-            </div>
-            <button type="button" class="row-ellipsis-btn" title="More options" aria-label="More options">
-                <svg width="3" height="15" viewBox="0 0 3 15" fill="currentColor">
-                    <circle cx="1.5" cy="1.5" r="1.5"/>
-                    <circle cx="1.5" cy="7.5" r="1.5"/>
-                    <circle cx="1.5" cy="13.5" r="1.5"/>
-                </svg>
-            </button>
-        `;
-        el.addEventListener("click", () => selectSession(sess));
-        el.querySelector(".row-ellipsis-btn").addEventListener("click", (e) => {
-            e.stopPropagation();
-            openRowFlyout(e.currentTarget, [
-                { label: "Analyze Session", onClick: () => {
-                    closeRecordingSelectDropdown();
-                    selectRecordingLabel.textContent = sess.name;
-                    setAnalysisTarget("session", sess);
-                } },
-                { label: "Delete Session", danger: true, onClick: () => {
-                    openConfirmDelete(
-                        "Delete Session",
-                        `This will permanently delete "${sess.name}" and all of its recordings. This can't be undone.`,
-                        () => deleteSession(sess)
-                    );
-                } },
-            ]);
-        });
-        sessionsListEl.appendChild(el);
-    });
-}
-
-async function deleteSession(sess) {
-    if (!selectedSubject) return;
-    try {
-        await api.deleteSession(sess.id);
-    } catch (err) {
-        console.error(err);
-        showToast(err.message || "Couldn't delete session.");
-        return;
-    }
-
-    const list = SESSIONS[selectedSubject.id] || [];
-    const idx = list.findIndex(x => x.id === sess.id);
-    if (idx !== -1) list.splice(idx, 1);
-    delete RECORDINGS[sess.id];
-
-    if (selectedSession && selectedSession.id === sess.id) {
-        selectedSession = null;
-        selectedRecording = null;
-        currentLevel = "sessions";
-        renderLevelChrome();
-    }
-    if (analysisTargetType === "session" && analysisTargetRef === sess) {
-        setAnalysisTarget(null, null);
-    } else if (analysisTargetType === "recording" && analysisTargetRef && analysisTargetRef.sessionId === sess.id) {
-        setAnalysisTarget(null, null);
-    }
-
-    renderSessions();
-    renderRecordings();
-    showToast(`Deleted ${sess.name}.`);
-    broadcastProjectDataChanged();
-}
-
-async function selectSession(sess) {
-    selectedSession = sess;
-    selectedRecording = null;
-    currentLevel = "recordings";
-    renderLevelChrome();
-    renderSessions();
-    if (!RECORDINGS[sess.id]) {
-        recordingsListEl.innerHTML = `<div class="box-empty"><div class="empty-title">Loading&hellip;</div></div>`;
-    }
-    await loadRecordingsForSession(sess);
-    // The user may have navigated elsewhere while this was in flight.
-    if (selectedSession === sess) renderRecordings();
-}
-
-function renderRecordings() {
-    recordingsListEl.innerHTML = "";
-
-    if (!selectedSession) {
-        recordingsListEl.innerHTML = `<div class="box-empty">
-            <div class="empty-title">No session selected</div>
-            <div class="empty-desc">Pick a session to see its recordings.</div>
-        </div>`;
-        return;
-    }
-
-    const loadedRecordings = RECORDINGS[selectedSession.id];
-    // Same reasoning as renderSessions above.
     if (!loadedRecordings && pendingCrossTabChange) {
         recordingsListEl.innerHTML = `<div class="box-empty">
             <div class="empty-title">Refresh to load</div>
@@ -1477,38 +1363,42 @@ function renderRecordings() {
         return;
     }
 
-    const recs = loadedRecordings || [];
+    const recs = (loadedRecordings || []).slice().sort((a, b) => {
+        return new Date(b._raw && b._raw.created_at) - new Date(a._raw && a._raw.created_at);
+    });
     recs.forEach(rec => {
         const row = document.createElement("div");
         row.className = "recording-row";
         row.innerHTML = `
+            <button type="button" class="recording-select-btn${multiSelectedRecordingIds.has(rec.id) ? " selected" : ""}" title="Select recording" aria-label="Select recording">
+                <span class="recording-select-dot"></span>
+            </button>
             <div class="recording-item${isAnalysisTarget("recording", rec) ? " selected" : ""}">
-                <div class="recording-icon">
-                    ${rec.type === 'uploaded' ? `
-                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                        <path d="M7 9.5V1.5M7 1.5L4 4.5M7 1.5L10 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M1.5 9.5V11a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    ` : `
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4Z" stroke="currentColor" stroke-width="1.6"/>
-                        <path d="M5 11a7 7 0 0 0 14 0M12 18v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                    </svg>
-                    `}
-                </div>
                 <div class="recording-info">
                     <div class="recording-name">${rec.name}</div>
-                    <div class="recording-time">${rec.time}</div>
+                    <div class="recording-time">${rec.date ? `${rec.date} &middot; ${rec.time}` : rec.time}</div>
                 </div>
-                <div class="recording-chip ${rec.type === 'custom' ? 'custom' : rec.type === 'uploaded' ? 'uploaded' : ''}">${rec.type === 'custom' ? 'User-defined' : rec.type === 'uploaded' ? 'Uploaded' : 'Validated'}</div>
+                <div class="recording-chip ${rec.type === 'custom' ? 'custom' : rec.type === 'uploaded' ? 'uploaded' : ''}">${rec.type === 'custom' ? 'User-defined' : rec.type === 'uploaded' ? 'Uploaded' : 'Live'}</div>
             </div>
         `;
-        row.querySelector(".recording-item").addEventListener("click", () => {
+        function pickThisRecording() {
             selectedRecording = rec;
             renderRecordings();
             selectRecordingLabel.textContent = rec.name;
             setAnalysisTarget("recording", rec);
             closeRecordingSelectDropdown();
+        }
+        row.querySelector(".recording-item").addEventListener("click", pickThisRecording);
+        row.querySelector(".recording-select-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (multiSelectedRecordingIds.has(rec.id)) {
+                multiSelectedRecordingIds.delete(rec.id);
+                e.currentTarget.classList.remove("selected");
+            } else {
+                multiSelectedRecordingIds.add(rec.id);
+                e.currentTarget.classList.add("selected");
+            }
+            updateRecordingMultiselectBar();
         });
         recordingsListEl.appendChild(row);
     });
@@ -1606,74 +1496,6 @@ addDocListener("keydown", (e) => {
 });
 
 container.querySelector("#add-subject-btn").addEventListener("click", openAddSubjectModal);
-
-// ---------------------------------------------------------------------
-// Add-session modal (same modal pattern; name is the only editable
-// field -- date and session numbering are fixed/auto-generated)
-// ---------------------------------------------------------------------
-
-const sessionModalOverlay = container.querySelector("#addSessionOverlay");
-const sessionModalForm = container.querySelector("#addSessionForm");
-const sessionModalNameInput = container.querySelector("#sessionNameInput");
-
-function openAddSessionModal() {
-    if (!selectedSubject) {
-        showToast("Select a subject first.");
-        return;
-    }
-    if (sessionModalForm) sessionModalForm.reset();
-    if (sessionModalOverlay) sessionModalOverlay.classList.add("visible");
-    if (sessionModalNameInput) sessionModalNameInput.focus();
-}
-
-function closeAddSessionModal() {
-    if (sessionModalOverlay) sessionModalOverlay.classList.remove("visible");
-}
-
-function formatSessionDate(date) {
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-if (sessionModalForm) {
-    sessionModalForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (!selectedSubject) return;
-
-        const subjectId = selectedSubject.id;
-        const customName = sessionModalNameInput.value.trim();
-
-        let created;
-        try {
-            created = await api.createSession(subjectId, { name: customName || null });
-        } catch (err) {
-            console.error(err);
-            showToast(err.message || "Couldn't add session.");
-            return;
-        }
-
-        const newSession = mapSession(created);
-        if (!SESSIONS[subjectId]) SESSIONS[subjectId] = [];
-        SESSIONS[subjectId].push(newSession);
-
-        closeAddSessionModal();
-        renderSessions();
-        broadcastProjectDataChanged();
-    });
-}
-
-container.querySelector("#addSessionCancel")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeAddSessionModal();
-});
-
-addDocListener("keydown", (e) => {
-    if (!isTabActive()) return;
-    if (e.key === "Escape" && sessionModalOverlay && sessionModalOverlay.classList.contains("visible")) {
-        closeAddSessionModal();
-    }
-});
-
-container.querySelector("#add-session-btn").addEventListener("click", openAddSessionModal);
 
 // ---------------------------------------------------------------------
 // Add-recording modal (same pattern; task picker with a custom-name
@@ -1846,7 +1668,7 @@ function setRecordingControlsDisabled(disabled) {
     taskDurationGroup?.classList.toggle("is-disabled", disabled);
 }
 
-// The live-recording backend call (POST /api/sessions/{id}/recordings)
+// The live-recording backend call (POST /api/subjects/{id}/recordings)
 // actually captures audio for `duration` seconds server-side, which lines
 // up with the local countdown/progress-bar animation below running for
 // the same duration -- so the request is fired the moment the visual
@@ -1860,9 +1682,9 @@ function startTaskRecording(prepareToken) {
     recordingStartTs = performance.now();
 
     const taskLabel = selectedRecordingTaskType === "DDK" ? "DDK" : "Sustained Vowel";
-    pendingLiveRecording = selectedSession
-        ? api.addLiveRecording(selectedSession.id, taskLabel, selectedRecordingDuration, prepareToken)
-        : Promise.reject(new Error("Select a session first."));
+    pendingLiveRecording = selectedSubject
+        ? api.addLiveRecording(selectedSubject.id, taskLabel, selectedRecordingDuration, prepareToken)
+        : Promise.reject(new Error("Select a subject first."));
     // Swallowed here so an unhandled-rejection warning can't fire before
     // finishTaskRecording gets a chance to inspect the real result below.
     pendingLiveRecording.catch(() => {});
@@ -1911,7 +1733,7 @@ async function finishTaskRecording(cancelled) {
     recordingRafId = null;
 
     const requestPromise = pendingLiveRecording;
-    const sessionAtStart = selectedSession;
+    const subjectAtStart = selectedSubject;
     pendingLiveRecording = null;
 
     if (taskRecordBtn) {
@@ -1931,22 +1753,22 @@ async function finishTaskRecording(cancelled) {
         // duration regardless of the button tap. Let that request land in
         // the background and just delete whatever it logged, so a
         // cancelled take never shows up in the recordings list.
-        if (requestPromise && sessionAtStart) {
+        if (requestPromise && subjectAtStart) {
             requestPromise
-                .then((row) => api.deleteRecording(sessionAtStart.id, row.recording_id))
+                .then((row) => api.deleteRecording(subjectAtStart.id, row.recording_id))
                 .catch(() => {});
         }
         return;
     }
 
     // Hide the record button/prompt while the take is under review
-    // (either the quality-check flow below, or — if there's no session
+    // (either the quality-check flow below, or — if there's no subject
     // to log against — the plain "done" confirmation).
     if (taskRecordBtn) taskRecordBtn.style.display = "none";
     taskPrompt?.classList.add("is-hidden");
 
-    if (!sessionAtStart) {
-        showToast("Select a session first.");
+    if (!subjectAtStart) {
+        showToast("Select a subject first.");
         showRecordingCompleteTick();
         return;
     }
@@ -1966,14 +1788,14 @@ async function finishTaskRecording(cancelled) {
     }
 
     const newRecording = mapRecording(row);
-    const sessionId = sessionAtStart.id;
-    if (!RECORDINGS[sessionId]) RECORDINGS[sessionId] = [];
-    RECORDINGS[sessionId].push(newRecording);
-    if (selectedSession && selectedSession.id === sessionId) {
+    const subjectId = subjectAtStart.id;
+    if (!RECORDINGS[subjectId]) RECORDINGS[subjectId] = [];
+    RECORDINGS[subjectId].push(newRecording);
+    if (selectedSubject && selectedSubject.id === subjectId) {
         selectedRecording = newRecording;
         renderRecordings();
     }
-    invalidateSessionAnalysisCache(sessionId);
+    invalidateSubjectAnalysisCache(subjectId);
     addRecordingLogEntry(newRecording);
     broadcastProjectDataChanged();
 
@@ -2068,16 +1890,16 @@ function showRecordingCompleteTick() {
 
 // Discards the take just logged (user chose Re-record on the quality
 // review card): deletes it from the backend too, so it doesn't linger in
-// storage or count toward the session's mean/SD, then returns the panel
+// storage or count toward the subject's mean/SD, then returns the panel
 // to its ready-to-record state.
 async function discardLastRecordingAndReset() {
-    if (selectedSession) {
-        const sessionId = selectedSession.id;
-        const list = RECORDINGS[sessionId];
+    if (selectedSubject) {
+        const subjectId = selectedSubject.id;
+        const list = RECORDINGS[subjectId];
         if (list && list.length) {
             const removed = list.pop();
             try {
-                await api.deleteRecording(sessionId, removed.id);
+                await api.deleteRecording(subjectId, removed.id);
             } catch (err) {
                 console.error(err);
             }
@@ -2085,8 +1907,8 @@ async function discardLastRecordingAndReset() {
             if (analysisTargetType === "recording" && analysisTargetRef === removed) {
                 setAnalysisTarget(null, null);
             }
-            if (selectedSession && selectedSession.id === sessionId) renderRecordings();
-            invalidateSessionAnalysisCache(sessionId);
+            if (selectedSubject && selectedSubject.id === subjectId) renderRecordings();
+            invalidateSubjectAnalysisCache(subjectId);
             removeLastRecordingLogEntry();
             broadcastProjectDataChanged();
         }
@@ -2239,8 +2061,8 @@ recordingStatusLine?.addEventListener("click", () => {
 });
 
 function openAddRecordingModal() {
-    if (!selectedSession) {
-        showToast("Select a session first.");
+    if (!selectedSubject) {
+        showToast("Select a subject first.");
         return;
     }
     if (recordingModalForm) recordingModalForm.reset();
@@ -2260,8 +2082,12 @@ function formatRecordingTime(date) {
     return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+function formatRecordingDate(date) {
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 // ---- Live recording log (top-left box in the New Recording modal) ----
-// Shows the takes captured during this modal session, newest first.
+// Shows the takes captured during this modal visit, newest first.
 // Populated as each recording lands (finishTaskRecording), trimmed if the
 // user discards a take on the quality review card (discardLastRecordingAndReset).
 const recordingLogBox = container.querySelector("#recordingLogBox");
@@ -2313,27 +2139,28 @@ function removeLastRecordingLogEntry() {
 // but works for any entry in the log, not just the last one.
 async function deleteRecordingLogEntry(recording, li) {
     if (!recording || !recording.id) return;
-    const sessionId = recording.sessionId;
+    const subjectId = recording.subjectId;
     try {
-        await api.deleteRecording(sessionId, recording.id);
+        await api.deleteRecording(subjectId, recording.id);
     } catch (err) {
         console.error(err);
         showToast(err.message || "Couldn't delete recording.");
         return;
     }
-    const list = RECORDINGS[sessionId];
+    const list = RECORDINGS[subjectId];
     if (list) {
         const idx = list.indexOf(recording);
         if (idx !== -1) list.splice(idx, 1);
     }
+    if (multiSelectedRecordingIds.delete(recording.id)) updateRecordingMultiselectBar();
     if (selectedRecording === recording) {
         selectedRecording = list && list.length ? list[list.length - 1] : null;
     }
     if (analysisTargetType === "recording" && analysisTargetRef === recording) {
         setAnalysisTarget(null, null);
     }
-    if (selectedSession && selectedSession.id === sessionId) renderRecordings();
-    invalidateSessionAnalysisCache(sessionId);
+    if (selectedSubject && selectedSubject.id === subjectId) renderRecordings();
+    invalidateSubjectAnalysisCache(subjectId);
     li.remove();
     updateRecordingLogEmptyState();
     showToast("Recording deleted");
@@ -2349,7 +2176,7 @@ function clearRecordingLog() {
 if (recordingModalForm) {
     recordingModalForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        if (!selectedSession) return;
+        if (!selectedSubject) return;
 
         const isCustom = recordingTaskSelect.value === "__custom__";
         const name = isCustom
@@ -2368,9 +2195,9 @@ if (recordingModalForm) {
             duration: selectedRecordingDuration,
         };
 
-        const sessionId = selectedSession.id;
-        if (!RECORDINGS[sessionId]) RECORDINGS[sessionId] = [];
-        RECORDINGS[sessionId].push(newRecording);
+        const subjectId = selectedSubject.id;
+        if (!RECORDINGS[subjectId]) RECORDINGS[subjectId] = [];
+        RECORDINGS[subjectId].push(newRecording);
 
         closeAddRecordingModal();
         selectedRecording = newRecording;
@@ -2382,7 +2209,7 @@ container.querySelector("#recordingModalBack")?.addEventListener("click", closeA
 
 // "Extract Features" button (top-right of the recording modal, same row
 // as Back) -- batch-runs preprocessing + feature extraction over every
-// recording logged so far this session that's still pending it. Takes
+// recording this subject has logged that's still pending it. Takes
 // are logged with features={} the instant they're quality-confirmed
 // (see add_live_recording in api/routes.py), so this is what actually
 // gets them analyzed and reflected in the main Sustained/DDK views.
@@ -2390,22 +2217,22 @@ const recordingModalExtractBtn = container.querySelector("#recordingModalExtract
 const recordingModalExtractBtnLabel = container.querySelector("#recordingModalExtractBtnLabel");
 
 recordingModalExtractBtn?.addEventListener("click", async () => {
-    if (!selectedSession || recordingModalExtractBtn.disabled) return;
-    const sessionId = selectedSession.id;
+    if (!selectedSubject || recordingModalExtractBtn.disabled) return;
+    const subjectId = selectedSubject.id;
 
     recordingModalExtractBtn.disabled = true;
     recordingModalExtractBtn.classList.add("is-extracting");
     if (recordingModalExtractBtnLabel) recordingModalExtractBtnLabel.textContent = "Extracting…";
 
     try {
-        const result = await api.extractSessionFeatures(sessionId);
+        const result = await api.extractSubjectFeatures(subjectId);
         const updatedCount = result?.updated?.length || 0;
         const errorCount = result?.errors?.length || 0;
 
         if (updatedCount > 0) {
-            await loadRecordingsForSession(selectedSession, { force: true });
-            if (selectedSession && selectedSession.id === sessionId) renderRecordings();
-            invalidateSessionAnalysisCache(sessionId);
+            await loadRecordingsForSubject(selectedSubject, { force: true });
+            if (selectedSubject && selectedSubject.id === subjectId) renderRecordings();
+            invalidateSubjectAnalysisCache(subjectId);
         }
 
         if (errorCount > 0) {
@@ -2457,8 +2284,8 @@ function closeAddRecordingFlyout() {
 
 addRecordingBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (!selectedSession) {
-        showToast("Select a session first.");
+    if (!selectedSubject) {
+        showToast("Select a subject first.");
         return;
     }
     if (addRecordingFlyout.classList.contains("open")) {
@@ -2510,8 +2337,8 @@ uploadTaskTypeToggle?.addEventListener("click", (e) => {
 });
 
 function openUploadTaskModal() {
-    if (!selectedSession) {
-        showToast("Select a session first.");
+    if (!selectedSubject) {
+        showToast("Select a subject first.");
         return;
     }
     setUploadTaskType("Sustained");
@@ -2545,9 +2372,9 @@ uploadTaskContinueBtn?.addEventListener("click", (e) => {
 
 uploadRecordingInput?.addEventListener("change", async () => {
     const files = uploadRecordingInput.files;
-    if (!files || !files.length || !selectedSession) return;
+    if (!files || !files.length || !selectedSubject) return;
 
-    const sessionId = selectedSession.id;
+    const subjectId = selectedSubject.id;
     const taskLabel = uploadTaskType === "DDK" ? "DDK" : "Sustained Vowel";
     showToast(`Uploading ${files.length} recording${files.length > 1 ? "s" : ""}\u2026`, {
         loading: true,
@@ -2556,7 +2383,7 @@ uploadRecordingInput?.addEventListener("change", async () => {
 
     let created;
     try {
-        created = await api.uploadRecordings(sessionId, taskLabel, files);
+        created = await api.uploadRecordings(subjectId, taskLabel, files);
     } catch (err) {
         console.error(err);
         showToast(err.message || "Upload failed.");
@@ -2564,10 +2391,10 @@ uploadRecordingInput?.addEventListener("change", async () => {
     }
 
     const newRecordings = created.map(mapRecording);
-    if (!RECORDINGS[sessionId]) RECORDINGS[sessionId] = [];
-    RECORDINGS[sessionId].push(...newRecordings);
-    if (selectedSession && selectedSession.id === sessionId) renderRecordings();
-    invalidateSessionAnalysisCache(sessionId);
+    if (!RECORDINGS[subjectId]) RECORDINGS[subjectId] = [];
+    RECORDINGS[subjectId].push(...newRecordings);
+    if (selectedSubject && selectedSubject.id === subjectId) renderRecordings();
+    invalidateSubjectAnalysisCache(subjectId);
     showToast(`${newRecordings.length} recording${newRecordings.length > 1 ? "s" : ""} uploaded & logged`);
     broadcastProjectDataChanged();
 });
@@ -2584,8 +2411,8 @@ addDocListener("keydown", (e) => {
     if (e.key === "Escape") closeAddRecordingFlyout();
 });
 
-// ================= Recording-select dropdown (Subjects -> Sessions ->
-// Recordings drill-down, opened from the menubar) =================
+// ================= Recording-select dropdown (Subjects -> Recordings
+// drill-down, opened from the menubar) =================
 
 const selectRecordingBtn = container.querySelector("#select-recording-btn");
 const selectRecordingLabel = container.querySelector("#select-recording-label");
@@ -2597,10 +2424,17 @@ function openRecordingSelectDropdown() {
     container.querySelectorAll(".menubar-menu.open").forEach(m => m.classList.remove("open"));
     if (typeof closeAllTypeDropdownsFn === "function") closeAllTypeDropdownsFn();
     recordingSelectDropdown.classList.add("open");
+    updateRecordingMultiselectBar();
 }
 
 function closeRecordingSelectDropdown() {
     recordingSelectDropdown.classList.remove("open");
+    if (recordingMultiselectBar) recordingMultiselectBar.classList.remove("open");
+    // Closing without pressing "Continue" discards any tentative dot
+    // clicks -- revert to whatever's actually the committed target so
+    // reopening the dropdown later doesn't show stale selections.
+    syncMultiSelectFromTarget();
+    renderRecordings();
 }
 closeRecordingSelectDropdownFn = closeRecordingSelectDropdown;
 
@@ -2615,6 +2449,24 @@ selectRecordingBtn.addEventListener("click", (e) => {
 });
 
 recordingSelectDropdown.addEventListener("click", (e) => e.stopPropagation());
+
+// ================= Subject picker modal accordion (VISUAL MOCKUP ONLY) =================
+// Purely a visual/interaction mockup for the centered subject-picker panel
+// (#subjectPickerModal in shell.html) -- expands a clicked subject's row
+// downward to reveal its (static, placeholder) sessions list, exactly the
+// same single-open accordion pattern as the hamburger menu's File/Edit/
+// View/etc. groups in shell.js. No real session data involved; this only
+// toggles the ".open" class scoped to this tab's own modal instance.
+container.querySelectorAll(".subject-picker-group").forEach((group) => {
+    const row = group.querySelector(".subject-picker-row");
+    if (!row) return;
+    row.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = group.classList.contains("open");
+        container.querySelectorAll(".subject-picker-group.open").forEach((g) => g.classList.remove("open"));
+        if (!isOpen) group.classList.add("open");
+    });
+});
 
 function isInsideOpenModal(target) {
     if (!target.closest) return false;
@@ -2667,10 +2519,10 @@ addDocListener("keydown", (e) => {
     // layer is somehow missing from the page.
     const canvas = container.querySelector("#pinboard-canvas") || board;
 
-    // Exposed so the analysis-target logic (subject/session/recording
+    // Exposed so the analysis-target logic (subject/recording
     // selection) can clear the board whenever what's being analyzed
     // changes — every widget (Values, Quality, and Graph alike) is scoped
-    // to whatever subject/session/recording is currently selected, so none
+    // to whatever subject/recording is currently selected, so none
     // of them should linger once the user picks a different target.
     clearPinboardWidgetsFn = function () {
         board.querySelectorAll(".pinboard-widget").forEach(w => w.remove());
@@ -2737,10 +2589,10 @@ addDocListener("keydown", (e) => {
     }
 
     // Computes the metric values a Values/Quality widget should show right
-    // now, based on the current analysis target (subject/session/recording
+    // now, based on the current analysis target (subject/recording
     // — see setAnalysisTarget/analysisTargetRef above). "recording" targets
     // read straight from the recording row's own data (already fetched with
-    // the recordings list); "subject"/"session" targets read from the
+    // the recordings list); "subject" targets read from the
     // lazily-fetched ref._summary (see ensureAnalysisSummary) and may not be
     // populated yet, in which case rows just fall back to the em-dash.
     function getWidgetValuesSync(widgetTitle, valueType) {
@@ -2756,7 +2608,7 @@ addDocListener("keydown", (e) => {
                 return values;
             }
 
-            // subject or session — mean ± SD summary
+            // subject — mean ± SD summary
             const summary = analysisTargetRef._summary;
             if (!summary) return values;
             const meanKey = valueType === "DDK" ? "ddk_mean" : "vowel_mean";
@@ -2798,12 +2650,12 @@ addDocListener("keydown", (e) => {
     // regardless of what was actually being analyzed. These accessors
     // replace that: they read the SAME underlying values (features on
     // _raw for a single recording, vowel_mean/ddk_mean on _summary for
-    // a session/subject) already used by getWidgetValuesSync() above,
+    // a subject) already used by getWidgetValuesSync() above,
     // so a graph and the matching Values widget can never disagree —
     // and because _summary is a live mean/SD rollup across every
-    // recording in the session/subject (recomputed on every fetch, see
-    // compute_session_summary()/compute_subject_summary() in
-    // app/recording_store.py), a graph on a session/subject target
+    // recording in the subject (recomputed on every fetch, see
+    // compute_date_summary()/compute_subject_summary() in
+    // app/recording_store.py), a graph on a subject target
     // automatically reflects newly added/removed recordings the next
     // time it re-renders (see refreshAllWidgetValues() below, which
     // now re-renders open graph widgets too, not just Values/Quality).
@@ -2858,12 +2710,12 @@ addDocListener("keydown", (e) => {
     // recently-viewed recording is instant. A failed fetch is not
     // cached, so re-opening the widget retries instead of getting stuck
     // on a transient error.
-    const _ddkContourCache = new Map(); // "sessionId:recordingId" -> Promise<contour|null>
+    const _ddkContourCache = new Map(); // "subjectId:recordingId" -> Promise<contour|null>
 
-    function fetchDDKContourForTarget(sessionId, recordingId) {
-        const key = `${sessionId}:${recordingId}`;
+    function fetchDDKContourForTarget(subjectId, recordingId) {
+        const key = `${subjectId}:${recordingId}`;
         if (_ddkContourCache.has(key)) return _ddkContourCache.get(key);
-        const p = api.getRecordingDdkContour(sessionId, recordingId).catch((err) => {
+        const p = api.getRecordingDdkContour(subjectId, recordingId).catch((err) => {
             console.error(err);
             _ddkContourCache.delete(key);
             return null;
@@ -2874,12 +2726,12 @@ addDocListener("keydown", (e) => {
 
     // Pause Ratio and DDK Summary only need the scalar features already
     // returned by getDdkValuesForTarget() (real for both a single
-    // recording and a session/subject aggregate). Peak Tracker/Interval
-    // Bar/Regularity Trend need the granular arrays a session/subject
-    // aggregate has no single-waveform equivalent of -- same
-    // recording-only restriction as Spectrogram/DDK Waveform/Pitch
-    // Waveform (see updateWidgetButtonsAvailability), so a session/
-    // subject target shows the empty state here too.
+    // recording and a subject aggregate). Peak Tracker/Interval
+    // Bar/Regularity Trend need the granular arrays a subject aggregate
+    // has no single-waveform equivalent of -- same recording-only
+    // restriction as Spectrogram/DDK Waveform/Pitch Waveform (see
+    // updateWidgetButtonsAvailability), so a subject target shows the
+    // empty state here too.
     let _ddkContourTokenCounter = 0;
 
     function loadDDKContourForWidget(container, label, onData) {
@@ -2887,11 +2739,11 @@ addDocListener("keydown", (e) => {
             container.innerHTML = graphEmptyStateHTML(label);
             return;
         }
-        const sessionId = analysisTargetRef.sessionId
-            || (analysisTargetRef._raw && analysisTargetRef._raw.session_id);
+        const subjectId = analysisTargetRef.subjectId
+            || (analysisTargetRef._raw && analysisTargetRef._raw.subject_id);
         const recordingId = analysisTargetRef.id
             || (analysisTargetRef._raw && analysisTargetRef._raw.recording_id);
-        if (!sessionId || !recordingId) {
+        if (!subjectId || !recordingId) {
             container.innerHTML = graphEmptyStateHTML(label);
             return;
         }
@@ -2900,7 +2752,7 @@ addDocListener("keydown", (e) => {
         container.dataset.ddkContourToken = token;
         container.innerHTML = `<div class="pinboard-widget-empty">Loading ${label}\u2026</div>`;
 
-        fetchDDKContourForTarget(sessionId, recordingId).then((data) => {
+        fetchDDKContourForTarget(subjectId, recordingId).then((data) => {
             if (container.dataset.ddkContourToken !== token) return; // stale — target/widget moved on
             if (!data || !data.peak_times || data.peak_times.length < 2) {
                 container.innerHTML = graphEmptyStateHTML(label);
@@ -3338,17 +3190,17 @@ addDocListener("keydown", (e) => {
 
     // ---- DDK Repetition Count Trend -----------------------------------
     // Longitudinal view across every DDK recording for the current
-    // session/subject target (needs 2+ DDK recordings to mean anything,
+    // subject target (needs 2+ DDK recordings to mean anything,
     // so it only ever renders for a "multi" target — see
     // getSidebarContextKey()). Reads the SAME "DDK Repetition Count"
-    // scalar already stored per recording (compute_session_summary /
+    // scalar already stored per recording (compute_date_summary /
     // compute_subject_summary in app/recording_store.py), tagged with
     // _created_at/_recording_id so trials can be sorted chronologically
     // and labeled with real dates — no new backend endpoint needed, this
     // is the same ddk_trials array getDdkValuesForTarget() already
     // reads, just walked point-by-point instead of averaged.
     function renderDDKRepetitionCountTrend(container) {
-        if (!(analysisTargetType === "session" || analysisTargetType === "subject") || !analysisTargetRef) {
+        if (!(analysisTargetType === "subject" || analysisTargetType === "recordings") || !analysisTargetRef) {
             container.innerHTML = graphEmptyStateHTML("DDK Repetition Count Trend");
             return;
         }
@@ -3499,7 +3351,7 @@ addDocListener("keydown", (e) => {
     // ---- DDK Regularity Trend (across-recordings) ----------------------
     // Longitudinal view of the "DDK Regularity" scalar (std/mean * 100 of
     // DDK interval timing -- a coefficient-of-variation percentage) across
-    // every DDK recording for the current session/subject target. Same
+    // every DDK recording for the current subject target. Same
     // ddk_trials array as DDK Repetition Count Trend above, just reading
     // "DDK Regularity" instead of "DDK Repetition Count" -- no new
     // backend endpoint needed.
@@ -3518,7 +3370,7 @@ addDocListener("keydown", (e) => {
     // breaking whichever widget got defined first. Same "DDK "-prefix
     // pattern already used for DDK Repetition Count Trend.
     function renderDDKRegularityLongTrend(container) {
-        if (!(analysisTargetType === "session" || analysisTargetType === "subject") || !analysisTargetRef) {
+        if (!(analysisTargetType === "subject" || analysisTargetType === "recordings") || !analysisTargetRef) {
             container.innerHTML = graphEmptyStateHTML("Regularity Trend");
             return;
         }
@@ -3690,7 +3542,7 @@ addDocListener("keydown", (e) => {
 
     // ---- DDK Interval Stability Trend (across-recordings) --------------
     // Longitudinal view of "DDK Interval Mean" across every DDK recording
-    // for the current session/subject target -- same ddk_trials array
+    // for the current subject target -- same ddk_trials array
     // (and no new backend endpoint) as DDK Repetition Count Trend / DDK
     // Regularity Trend above, just reading "DDK Interval Mean" (the line)
     // and "DDK Interval Std" (the band) instead of Repetition Count or
@@ -3699,7 +3551,7 @@ addDocListener("keydown", (e) => {
     // The band is the point of this widget: it's each recording's OWN
     // "DDK Interval Std" plotted as a per-point +/-1 SD ribbon around
     // that recording's mean, not a single flat baseline band -- a
-    // widening ribbon over time means repetitions WITHIN a session are
+    // widening ribbon over time means repetitions WITHIN a date group are
     // getting less consistent, which a flat mean-only line (or the
     // dashed baseline reference line below) can't show on its own even
     // if the mean itself stays flat.
@@ -3710,7 +3562,7 @@ addDocListener("keydown", (e) => {
     // mean+SD-of-the-first-few-recordings threshold exactly, just applied
     // to Interval Mean instead of Regularity.
     function renderDDKIntervalStabilityTrend(container) {
-        if (!(analysisTargetType === "session" || analysisTargetType === "subject") || !analysisTargetRef) {
+        if (!(analysisTargetType === "subject" || analysisTargetType === "recordings") || !analysisTargetRef) {
             container.innerHTML = graphEmptyStateHTML("Interval Stability Trend");
             return;
         }
@@ -3875,7 +3727,7 @@ addDocListener("keydown", (e) => {
 
     // ---- Pause Ratio Trend (across-recordings) --------------------------
     // Longitudinal view of "Pause/Speech Ratio" across every DDK recording
-    // for the current session/subject target -- same ddk_trials array
+    // for the current subject target -- same ddk_trials array
     // (and no new backend endpoint) as DDK Repetition Count Trend / DDK
     // Regularity Trend / Interval Stability Trend above, just reading
     // "Pause/Speech Ratio" instead.
@@ -3895,7 +3747,7 @@ addDocListener("keydown", (e) => {
     // since a ratio has no fixed 0-100 scale to borrow a magic number
     // from.
     function renderPauseRatioTrend(container) {
-        if (!(analysisTargetType === "session" || analysisTargetType === "subject") || !analysisTargetRef) {
+        if (!(analysisTargetType === "subject" || analysisTargetType === "recordings") || !analysisTargetRef) {
             container.innerHTML = graphEmptyStateHTML("Pause Ratio Trend");
             return;
         }
@@ -4063,7 +3915,7 @@ addDocListener("keydown", (e) => {
     // ---- Rate Trend (across-recordings) ---------------------------------
     // Longitudinal view of "Speech Rate" (syllables/sec) and "DDK
     // Repetition Rate" (repetitions/sec) across every DDK recording for
-    // the current session/subject target -- same ddk_trials array (and
+    // the current subject target -- same ddk_trials array (and
     // no new backend endpoint) as DDK Repetition Count Trend / DDK
     // Regularity Trend / Interval Stability Trend / Pause Ratio Trend
     // above, just reading two scalars instead of one.
@@ -4086,7 +3938,7 @@ addDocListener("keydown", (e) => {
     // extraction failure doesn't shift every later Speech Rate point
     // sideways on its own chart.
     function renderRateTrend(container) {
-        if (!(analysisTargetType === "session" || analysisTargetType === "subject") || !analysisTargetRef) {
+        if (!(analysisTargetType === "subject" || analysisTargetType === "recordings") || !analysisTargetRef) {
             container.innerHTML = graphEmptyStateHTML("Rate Trend");
             return;
         }
@@ -4280,7 +4132,7 @@ addDocListener("keydown", (e) => {
 
 
     // Real scalar already available via getDdkValuesForTarget() (works
-    // for a single recording or a session/subject aggregate alike) --
+    // for a single recording or a subject aggregate alike) --
     // no contour fetch needed.
     function renderPauseRatio(container) {
         const vals = getDdkValuesForTarget();
@@ -4323,7 +4175,7 @@ addDocListener("keydown", (e) => {
     // ---- DDK Summary ---------------------------------------------------
     // Three whole-recording scalars, intentionally axis-less -- real
     // values via getDdkValuesForTarget() (single recording or
-    // session/subject aggregate alike).
+    // subject aggregate alike).
     function statCardHtml(label, value, decimals, unit) {
         const v = typeof value === "number" ? fmt(value, decimals) : "\u2014";
         return `
@@ -4383,7 +4235,7 @@ addDocListener("keydown", (e) => {
     // Synthesizes a plausible harmonic spectrogram from the sustained-vowel
     // stats (F0/F1/F2/HNR) — a visual stand-in built from scalar features,
     // not a real STFT of the waveform. Used as the fallback when there's no
-    // single recording to run a real STFT on (a session/subject aggregate
+    // single recording to run a real STFT on (a subject aggregate
     // target has no one waveform), or if the real fetch below fails. See
     // renderRealSpectrogram for the real compute_spectrogram() output.
     function synthesizeSpectrogram(timeSteps, freqBins, maxFreq, vals) {
@@ -4451,7 +4303,7 @@ addDocListener("keydown", (e) => {
     }
 
     // Paints a REAL freq/time/magnitude-dB grid (from
-    // GET /api/sessions/{id}/recordings/{id}/spectrogram, i.e. actual
+    // GET /api/subjects/{id}/recordings/{id}/spectrogram, i.e. actual
     // compute_spectrogram() STFT output) instead of a synthesized one.
     // magnitudeDb is [freq_bins][time_bins], low frequency first (see
     // the route's docstring). Colored relative to a fixed 60dB dynamic
@@ -4575,7 +4427,7 @@ addDocListener("keydown", (e) => {
         container.dataset.rtSpectrogramToken = token;
         container.innerHTML = `<div class="pinboard-widget-empty">Loading spectrogram\u2026</div>`;
 
-        api.getRecordingSpectrogram(opts.sessionId, opts.recordingId).then((data) => {
+        api.getRecordingSpectrogram(opts.subjectId, opts.recordingId).then((data) => {
             if (container.dataset.rtSpectrogramToken !== token) return; // stale — target/widget moved on
             const freqs = data.freqs || [];
             const times = data.times || [];
@@ -4614,22 +4466,22 @@ addDocListener("keydown", (e) => {
     // Entry point for the Spectrogram widget. A single recording has a
     // real WAV file behind it, so try the real STFT first, falling
     // back to the synthesized harmonic stand-in only if that specific
-    // recording's fetch fails. A session/subject aggregate target has
-    // no single waveform a spectrogram can be computed from -- there's
+    // recording's fetch fails. A subject aggregate target has no
+    // single waveform a spectrogram can be computed from -- there's
     // no meaningful way to average multiple STFT grids -- so it shows
     // the empty state rather than a synthesized stand-in that could be
     // mistaken for real data.
     function renderSpectrogram(container) {
         if (analysisTargetType === "recording" && analysisTargetRef) {
-            const sessionId = analysisTargetRef.sessionId
-                || (analysisTargetRef._raw && analysisTargetRef._raw.session_id);
+            const subjectId = analysisTargetRef.subjectId
+                || (analysisTargetRef._raw && analysisTargetRef._raw.subject_id);
             const recordingId = analysisTargetRef.id
                 || (analysisTargetRef._raw && analysisTargetRef._raw.recording_id);
-            if (sessionId && recordingId) {
+            if (subjectId && recordingId) {
                 const vals = getSustainedValuesForTarget();
                 const isSustained = getDirectRecordingValueType() === "Sustained";
                 renderRealSpectrogram(container, {
-                    sessionId,
+                    subjectId,
                     recordingId,
                     isSustained,
                     fallback: () => {
@@ -4884,7 +4736,7 @@ addDocListener("keydown", (e) => {
     // updateWidgetButtonsAvailability) -- unlike Formants/Voice Quality's
     // plain scalar bars/rings, this widget's whole point is a single
     // sample's diagnostic profile, so it's left out of every
-    // *_multi/mixed sidebar section and guards against a session/subject
+    // *_multi/mixed sidebar section and guards against a subject
     // target directly here too, in case an already-open widget's target
     // changes underneath it.
     function renderMDVPSpider(container) {
@@ -5234,13 +5086,13 @@ addDocListener("keydown", (e) => {
     // Single-recording point view -- one sustained-vowel trial's own
     // tongue position. Registered as "Vowel Space" alongside MDVP
     // Profile in sustained_single only (see SIDEBAR_LAYOUTS below):
-    // averaging this across a session/subject's several recordings
+    // averaging this across a subject's several recordings
     // would blur exactly the per-trial signal it exists to show, which
     // is what the across-recordings Trajectory/Drift Trend widgets
-    // below are for instead. Guards against a session/subject target
+    // below are for instead. Guards against a subject target
     // directly here too (same reasoning as MDVP Profile above), since
     // getSustainedValuesForTarget() itself happily falls back to a
-    // session/subject's averaged vowel_mean and would otherwise render
+    // subject's averaged vowel_mean and would otherwise render
     // a real (but misleadingly blended) dot if an already-open widget's
     // target ever changed underneath it.
     function renderVowelSpaceCard(container) {
@@ -5275,7 +5127,7 @@ addDocListener("keydown", (e) => {
     // rather than a module-level variable or recomputed fresh every
     // render, so: (1) a clinician's edit survives redraws for as long as
     // this target stays the active one, (2) switching to a different
-    // subject/session gets THAT target's own default instead of
+    // subject gets THAT target's own default instead of
     // inheriting whatever the last-viewed target's baseline was edited
     // to, and (3) switching back later restores the edit, since
     // ensureAnalysisSummary() mutates ref._summary in place rather than
@@ -5307,7 +5159,7 @@ addDocListener("keydown", (e) => {
     // made on either card's baseline controls needs to redraw BOTH
     // cards, not just the one the clinician typed into. Lives on the
     // target ref itself (not a module-level Set), same reasoning as the
-    // baseline itself: switching to a different subject/session target
+    // baseline itself: switching to a different subject target
     // shouldn't carry over listeners registered against the previous
     // target, and switching back should find the survivors of that
     // target's own widgets, not some other target's.
@@ -5480,7 +5332,7 @@ addDocListener("keydown", (e) => {
     }
 
     function renderVowelSpaceTrajectory(container) {
-        if (!(analysisTargetType === "session" || analysisTargetType === "subject") || !analysisTargetRef) {
+        if (!(analysisTargetType === "subject" || analysisTargetType === "recordings") || !analysisTargetRef) {
             container.innerHTML = graphEmptyStateHTML("Vowel Space Trajectory");
             return;
         }
@@ -5560,7 +5412,7 @@ addDocListener("keydown", (e) => {
     }
 
     function renderVowelDriftTrend(container) {
-        if (!(analysisTargetType === "session" || analysisTargetType === "subject") || !analysisTargetRef) {
+        if (!(analysisTargetType === "subject" || analysisTargetType === "recordings") || !analysisTargetRef) {
             container.innerHTML = graphEmptyStateHTML("Vowel Drift Trend");
             return;
         }
@@ -5741,7 +5593,7 @@ addDocListener("keydown", (e) => {
     // ==========================================================
     // Real-audio waveform + playback (used by both Pitch Waveform
     // and DDK Waveform when the analysis target is a single
-    // recording — a real WAV file, not an aggregated session/subject
+    // recording — a real WAV file, not an aggregated subject
     // rollup). Falls back to the synthesized trace above/below when
     // there's no single recording to point at, or if the audio fails
     // to load, so the widgets never break — they just degrade to the
@@ -6040,7 +5892,7 @@ addDocListener("keydown", (e) => {
 
     // Prefers a real per-frame pitch contour if the backend ever starts
     // sending one (analysisTargetRef._raw.pitch_contour for a single
-    // recording, or the _summary equivalent for a session/subject
+    // recording, or the _summary equivalent for a subject
     // rollup), falling back to the synthesized stand-in otherwise.
     function getPitchTraceForTarget(vals) {
         const real = analysisTargetType === "recording"
@@ -6294,7 +6146,7 @@ addDocListener("keydown", (e) => {
     // Prefers a real per-frame intensity contour if the backend ever
     // starts sending one (analysisTargetRef._raw.ddk_intensity_contour
     // for a single recording, or the _summary equivalent for a
-    // session/subject rollup), falling back to the synthesized stand-in
+    // subject rollup), falling back to the synthesized stand-in
     // otherwise — same pattern as getPitchTraceForTarget().
     function getIntensityTraceForTarget(vals) {
         const real = analysisTargetType === "recording"
@@ -6461,7 +6313,7 @@ addDocListener("keydown", (e) => {
 
         // Recording-only widget (see updateWidgetButtonsAvailability) --
         // if the analysis target changes out from under an already-open
-        // DDK Waveform widget (e.g. user switches to a session), show
+        // DDK Waveform widget (e.g. user switches to a different subject), show
         // the empty state instead of a stale or meaningless trace.
         if (analysisTargetType !== "recording") {
             container.innerHTML = graphEmptyStateHTML("DDK Waveform");
@@ -6532,7 +6384,7 @@ addDocListener("keydown", (e) => {
     // Entry point for the Pitch Waveform widget. Recording-only, same as
     // DDK Waveform (see updateWidgetButtonsAvailability) — a waveform
     // plots one audio clip and has no coherent meaning averaged across a
-    // session/subject's several trials, so those targets get the empty
+    // subject's several trials, so those targets get the empty
     // state instead of the old synthesized F0 stand-in.
     function renderPitchWaveform(container) {
         if (container._pitchWaveformState) container._pitchWaveformState.cleanup();
@@ -6626,7 +6478,7 @@ addDocListener("keydown", (e) => {
     // which is task-agnostic and works just as well for DDK audio; it
     // only falls back to the Sustained-only synthesized stand-in (see
     // renderSynthesizedSpectrogram) if that recording's real fetch
-    // fails. A session/subject aggregate target has no single waveform
+    // fails. A subject aggregate target has no single waveform
     // to analyze, so it shows the empty state instead of synthesizing
     // stand-in data.
     const GRAPH_RENDERERS = {
@@ -6734,7 +6586,7 @@ addDocListener("keydown", (e) => {
     }
 
     // Re-reads current values for one widget and patches its rows in
-    // place (no re-render) — used once a pending subject/session summary
+    // place (no re-render) — used once a pending subject summary
     // fetch lands, so any Values widget already on the board picks up the
     // real numbers instead of staying on em-dashes.
     function refreshWidgetValues(widget) {
@@ -6755,7 +6607,7 @@ addDocListener("keydown", (e) => {
         // Spectrogram, Pitch Waveform, DDK Waveform) so they pick up the fresh
         // _summary/_raw data too, not just the Values/Quality number
         // widgets above -- e.g. after a new recording is added to the
-        // session/subject currently being analyzed. Each graph reads its
+        // subject currently being analyzed. Each graph reads its
         // own live data on every render (see getSustainedValuesForTarget/
         // getDdkValuesForTarget), so simply calling render() again is
         // enough; no separate "patch in place" step is needed the way
@@ -6766,7 +6618,7 @@ addDocListener("keydown", (e) => {
             if (renderer && content) renderer.render(content);
         });
         // Also re-run task-type filtering (see getAvailableTaskTypesForTarget()
-        // near the top of this file) now that a lazily-fetched session/subject
+        // near the top of this file) now that a lazily-fetched subject
         // summary has landed -- until now we didn't know which task types were
         // actually present, so buttons/dropdown options were left showing.
         if (typeof updateWidgetButtonsAvailability === "function") updateWidgetButtonsAvailability();
@@ -7644,7 +7496,6 @@ addDocListener("arc-project-deleted", (e) => {
 updateSortLabel();
 renderLevelChrome();
 loadSubjects();   // fetches this project's /subjects and renders once loaded
-renderSessions();
 renderRecordings();
 
 // Reflect which project this tab's instance is showing, via a bubbling

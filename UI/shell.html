@@ -214,89 +214,6 @@
             </div>
         </div>
 
-        <!-- ---------------- SIDE COLUMN ---------------- -->
-        <div id="side-col">
-
-            <!-- Profile -->
-            <div class="box">
-                <div class="box-header">
-                    <span class="box-title">Profile</span>
-                </div>
-                <div id="profile-card-body">
-                    <div class="profile-card-avatar">AR</div>
-                    <div>
-                        <div class="profile-card-name">Arc Researcher</div>
-                        <div class="profile-card-role">researcher@arclabs.io</div>
-                    </div>
-                    <button class="profile-card-link" title="View profile">
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Storage -->
-            <div class="box">
-                <div class="box-header">
-                    <span class="box-title">Storage</span>
-                </div>
-                <div class="box-body">
-                    <div class="storage-usage-row">
-                        <span class="storage-usage-value">6.2<span class="storage-usage-unit"> GB</span></span>
-                        <span class="storage-usage-unit">of 10 GB</span>
-                    </div>
-                    <div class="storage-bar-wrap"><div class="storage-bar-fill"></div></div>
-                    <div class="storage-caption"><b>62%</b> used across 4 projects</div>
-
-                    <div class="storage-plan-row">
-                        <div>
-                            <div class="storage-plan-name">Researcher Plan</div>
-                            <div class="storage-plan-sub">10 GB included</div>
-                        </div>
-                    </div>
-
-                    <div class="storage-actions">
-                        <button class="pill-button">Buy Storage</button>
-                        <button class="pill-button pill-button--accent">Upgrade</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Settings -->
-            <div class="box">
-                <div class="box-header">
-                    <span class="box-title">Settings</span>
-                </div>
-                <div class="box-body" style="padding-top:0;">
-
-                    <button class="settings-item">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                        Account
-                        <svg class="settings-item-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-
-                    <button class="settings-item">
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5v2M8 12.5v2M14.5 8h-2M3.5 8h-2M12.4 3.6l-1.4 1.4M5 10l-1.4 1.4M12.4 12.4l-1.4-1.4M5 6l-1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3"/></svg>
-                        Appearance
-                        <svg class="settings-item-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-
-                    <button class="settings-item">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v4H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 12h16v8H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-                        Notifications
-                        <svg class="settings-item-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-
-                    <button class="settings-item">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="1.5"/></svg>
-                        Privacy &amp; Security
-                        <svg class="settings-item-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M4.5 2.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-
-                </div>
-            </div>
-
-        </div>
-
     </div>
 
     <!-- New-project naming prompt. Deliberately NOT a subject-modal-overlay
@@ -316,7 +233,7 @@
     </div>
 
     <!-- Delete-project confirmation modal. Same markup/classes as the
-         subject/session confirm-delete modal in the project view
+         subject confirm-delete modal in the project view
          template below (#confirmDeleteOverlay etc.) -- each template is
          cloned into its own container and queried via
          container.querySelector, so the duplicate ids don't collide. -->
@@ -381,19 +298,14 @@
                         </div>
                         <div id="list-header-actions">
                             <div id="sort-trigger-wrap">
-                                <span id="sort-current-label">Name</span>
-                                <button id="sort-trigger" title="Sort: Name (click to change)">
+                                <span id="sort-current-label">Date Added</span>
+                                <button id="sort-trigger" title="Sort: Date Added (click to change)">
                                     <svg width="17" height="17" viewBox="0 0 14 14" fill="none">
                                         <path d="M3 4h8M4.5 7h5M6 10h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
                                     </svg>
                                 </button>
                             </div>
                             <button class="add-icon-button" id="add-subject-btn" title="New subject" style="display:none;">
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                    <path d="M6 1V11M1 6H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                </svg>
-                            </button>
-                            <button class="add-icon-button" id="add-session-btn" title="New session" style="display:none;">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                                     <path d="M6 1V11M1 6H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                                 </svg>
@@ -428,8 +340,21 @@
                         </div>
                     </div>
                     <div id="subjects-list"></div>
-                    <div id="sessions-list" style="display:none;"></div>
                     <div id="recordings-list" style="display:none;"></div>
+                </div>
+
+                <!-- Shown under the dropdown once one or more recordings are
+                     picked via the left-hand select dots in #recordings-list
+                     (see renderRecordings()/multiSelectedRecordingIds in
+                     project.js). "Continue" fetches a live-computed
+                     mean/SD summary for exactly those recordings
+                     (POST /recordings/summary) and sets them as the
+                     analysis target, the same as picking a subject --
+                     Values/Quality widgets and graphs render from that
+                     summary either way. -->
+                <div id="recording-multiselect-bar">
+                    <span id="recording-multiselect-count"></span>
+                    <button type="button" id="recording-multiselect-continue-btn" class="pill-button">Continue</button>
                 </div>
             </div>
 
@@ -483,7 +408,7 @@
             <div id="pinboard-canvas"></div>
 
             <div id="pinboard-no-target-msg" class="pinboard-no-target-msg">
-                Select a subject, session, or recording to begin
+                Select a subject or recording to begin
             </div>
 
             <button type="button" id="pinboard-recenter-btn" class="pinboard-recenter-btn" title="Reset view" aria-label="Reset view">
@@ -510,7 +435,7 @@
             </button>
 
             <!-- Shown when another tab on this same project creates/deletes a
-                 subject, session, or recording (see the "arc-project-data-changed"
+                 subject or recording (see the "arc-project-data-changed"
                  listener in project.js). Deliberately NOT an auto-refresh --
                  this tab may have graphs open mid-analysis, and silently
                  redrawing them while someone's reading a value would be worse
@@ -528,6 +453,162 @@
             </div>
         </div>
 
+
+        <!-- ============ Subject picker modal (VISUAL MOCKUP ONLY) ============
+             Design pass for the "open a project -> land on nothing" moment:
+             in place of the plain placeholder text inside #nav-strip, show
+             an actual panel with a searchable subject list. Deliberately
+             NOT wired up to real data yet -- the rows below are static
+             placeholders and the search input doesn't filter anything.
+             Clicking a subject row DOES do something purely visual: it
+             expands downward to reveal a (static, placeholder) sessions
+             list, the same accordion pattern as the File/Edit/View/etc.
+             groups in the titlebar's hamburger menu (single group open at
+             a time, chevron rotates) -- see .subject-picker-group wiring
+             further down in this file's script and the CSS in
+             subjects.css. Nothing here touches real session data yet.
+             The existing "Select Recording" dropdown
+             (#recording-select-dropdown, Subjects -> Sessions ->
+             Recordings) is completely untouched and still fully
+             functional; this panel is a separate visual exploration to get
+             the look right before any real data or interaction gets
+             connected to it.
+
+             This layer is a sibling of #secondary-menubar/#nav-strip (not a
+             child of #nav-strip) and spans the full #project-view-page --
+             i.e. the whole area below the titlebar -- so the modal centers
+             against that full area rather than just the pinboard canvas.
+             Background is a hardcoded black (not a theme variable) so it
+             reads the same in light or dark mode, same idea as the
+             always-black terminal widget elsewhere. -->
+        <div class="subject-picker-modal-layer" id="subjectPickerModalLayer">
+            <div class="subject-picker-modal" id="subjectPickerModal">
+                <div class="subject-picker-search">
+                    <svg class="subject-picker-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+                        <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    </svg>
+                    <input type="text" id="subjectPickerSearchInput" placeholder="Search subjects&hellip;" autocomplete="off">
+                </div>
+
+                <div class="subject-picker-list" id="subjectPickerList">
+                    <div class="subject-picker-group">
+                        <button type="button" class="subject-picker-row">
+                            <div class="subject-picker-avatar">JA</div>
+                            <div class="subject-picker-info">
+                                <div class="subject-picker-name">J. Alvarez</div>
+                                <div class="subject-picker-sub">1042 &middot; control</div>
+                            </div>
+                            <svg class="subject-picker-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="subject-picker-sessions">
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 1</span>
+                                <span class="subject-picker-session-date">Jun 3, 2026</span>
+                            </div>
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 2</span>
+                                <span class="subject-picker-session-date">Jun 10, 2026</span>
+                            </div>
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 3</span>
+                                <span class="subject-picker-session-date">Jun 17, 2026</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subject-picker-group">
+                        <button type="button" class="subject-picker-row">
+                            <div class="subject-picker-avatar">RS</div>
+                            <div class="subject-picker-info">
+                                <div class="subject-picker-name">R. Simmons</div>
+                                <div class="subject-picker-sub">1043 &middot; parkinsons</div>
+                            </div>
+                            <svg class="subject-picker-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="subject-picker-sessions">
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 1</span>
+                                <span class="subject-picker-session-date">May 28, 2026</span>
+                            </div>
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 2</span>
+                                <span class="subject-picker-session-date">Jun 4, 2026</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subject-picker-group">
+                        <button type="button" class="subject-picker-row">
+                            <div class="subject-picker-avatar">TN</div>
+                            <div class="subject-picker-info">
+                                <div class="subject-picker-name">T. Nguyen</div>
+                                <div class="subject-picker-sub">1044 &middot; control</div>
+                            </div>
+                            <svg class="subject-picker-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="subject-picker-sessions">
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 1</span>
+                                <span class="subject-picker-session-date">Jun 1, 2026</span>
+                            </div>
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 2</span>
+                                <span class="subject-picker-session-date">Jun 8, 2026</span>
+                            </div>
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 3</span>
+                                <span class="subject-picker-session-date">Jun 15, 2026</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subject-picker-group">
+                        <button type="button" class="subject-picker-row">
+                            <div class="subject-picker-avatar">MD</div>
+                            <div class="subject-picker-info">
+                                <div class="subject-picker-name">M. Delgado</div>
+                                <div class="subject-picker-sub">1045 &middot; als</div>
+                            </div>
+                            <svg class="subject-picker-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="subject-picker-sessions">
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 1</span>
+                                <span class="subject-picker-session-date">May 20, 2026</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subject-picker-group">
+                        <button type="button" class="subject-picker-row">
+                            <div class="subject-picker-avatar">SW</div>
+                            <div class="subject-picker-info">
+                                <div class="subject-picker-name">S. Whitfield</div>
+                                <div class="subject-picker-sub">1046 &middot; control</div>
+                            </div>
+                            <svg class="subject-picker-chevron" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                                <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <div class="subject-picker-sessions">
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 1</span>
+                                <span class="subject-picker-session-date">Jun 6, 2026</span>
+                            </div>
+                            <div class="subject-picker-session-row">
+                                <span class="subject-picker-session-name">Session 2</span>
+                                <span class="subject-picker-session-date">Jun 13, 2026</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
 
@@ -573,26 +654,6 @@
         </div>
     </div>
 
-    <div class="subject-modal-overlay" id="addSessionOverlay">
-        <div class="subject-modal-panel">
-            <div class="subject-modal-title">Add Session</div>
-
-            <form id="addSessionForm">
-                <div class="subject-modal-fields">
-                    <div class="subject-modal-field">
-                        <label for="sessionNameInput">Session Name</label>
-                        <input type="text" id="sessionNameInput" placeholder="Leave blank for &ldquo;Session N&rdquo;">
-                    </div>
-                </div>
-
-                <div class="subject-modal-actions">
-                    <button type="button" class="subject-modal-cancel" id="addSessionCancel">Cancel</button>
-                    <button type="submit" class="subject-modal-submit">Add Session</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <div class="subject-modal-overlay" id="confirmDeleteOverlay">
         <div class="subject-modal-panel">
             <div class="subject-modal-title" id="confirmDeleteTitle">Delete</div>
@@ -613,7 +674,7 @@
     <div class="subject-modal-overlay" id="projectDeletedOverlay">
         <div class="subject-modal-panel">
             <div class="subject-modal-title">Project Deleted</div>
-            <div class="subject-modal-message">This project has been deleted. All of its subjects, sessions, and recordings are gone.</div>
+            <div class="subject-modal-message">This project has been deleted. All of its subjects and recordings are gone.</div>
 
             <div class="subject-modal-actions">
                 <button type="button" class="subject-modal-submit" id="projectDeletedHomeBtn" style="width:100%;">Back to Home</button>
@@ -630,7 +691,7 @@
                 Back
             </button>
 
-            <button type="button" class="recording-modal-extract" id="recordingModalExtractBtn" title="Run feature extraction on every recording logged this session">
+            <button type="button" class="recording-modal-extract" id="recordingModalExtractBtn" title="Run feature extraction on every recording pending it for this subject">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 002 2h10a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>

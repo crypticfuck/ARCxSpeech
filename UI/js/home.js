@@ -160,7 +160,7 @@ function createHomeView(container, options) {
             e.stopPropagation();
             openConfirmDelete(
                 "Delete Project",
-                `This will permanently delete "${project.name}" and all of its data - every subject, session, and recording inside it. This can't be undone.`,
+                `This will permanently delete "${project.name}" and all of its data - every subject and recording inside it. This can't be undone.`,
                 () => deleteProject(project)
             );
         });

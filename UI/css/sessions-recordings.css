@@ -1,50 +1,9 @@
 /* ==========================================================================
-   Session + Recording item styling
+   Recording item styling
    These render inside the recording-select dropdown's drill-down list (see
-   subjects.css), not a separate box -- Subjects -> Sessions -> Recordings
-   share one panel, one level at a time.
+   subjects.css), not a separate box -- Subjects -> Recordings share one
+   panel, one level at a time.
    ========================================================================== */
-
-/* ---------- Session items ---------- */
-
-.session-item {
-        padding: 9px 10px;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: background-color .15s ease;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-.session-item:hover {
-        background-color: var(--bg-box-hover);
-    }
-
-.session-item.selected {
-        background-color: var(--bg-box-hover);
-        box-shadow: inset 0 0 0 1px var(--border-strong);
-    }
-
-.session-info {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-.session-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-
-.session-date {
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--text-tertiary);
-    }
 
 /* ---------- Recording items ---------- */
 
@@ -52,6 +11,39 @@
         display: flex;
         align-items: center;
         gap: 2px;
+    }
+
+.recording-select-btn {
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+    }
+
+.recording-select-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border-strong);
+        background-color: var(--bg-chip);
+        transition: border-color .15s ease, background-color .15s ease;
+    }
+
+.recording-select-btn:hover .recording-select-dot {
+        border-color: var(--accent-blue);
+    }
+
+.recording-select-btn.selected .recording-select-dot {
+        border-color: var(--accent-blue);
+        background-color: var(--accent-blue);
+        box-shadow: inset 0 0 0 2px var(--bg-chip);
     }
 
 .recording-item {

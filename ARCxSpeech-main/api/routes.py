@@ -18,8 +18,8 @@ from app.recording_quality import (
     classify_recording_quality,
     aggregate_recording_quality_metrics,
 )
-from app import subject_store, session_store, recording_store, project_store
-from app.project_paths import project_dir, subjects_root, recording_dir, recording_stem
+from app import subject_store, recording_store, project_store
+from app.project_paths import project_dir, subjects_root, recording_dir, recording_stem, date_key
 from app.clinical_history import (
     build_assessment_record,
     build_trial_scores,
@@ -154,8 +154,8 @@ def update_project(project_id: str, patch: ProjectUpdate):
 
 @router.delete("/api/projects/{project_id}")
 def delete_project(project_id: str):
-    """Deletes a project and every subject/session/recording/audio file
-    inside it -- see project_store.delete_project for why no separate
+    """Deletes a project and every subject/recording/audio file inside
+    it -- see project_store.delete_project for why no separate
     per-entity cascade is needed here."""
     _require_project(project_id)
     project_store.delete_project(project_id)
@@ -197,23 +197,15 @@ def add_subject(project_id: str, subject: Subject):
 
 @router.delete("/api/projects/{project_id}/subjects/{subject_id}")
 def delete_subject(project_id: str, subject_id: str):
-    """Deletes a subject entirely: their record, every session they
-    have, every recording inside those sessions, and any recording
-    files on disk that no other surviving recording in this project
-    still references."""
+    """Deletes a subject entirely: their record, every recording they
+    have, and any recording files on disk that no other surviving
+    recording in this project still references."""
     _require_project(project_id)
     subject = subject_store.get_subject(project_id, subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    sessions = session_store.get_sessions_for_subject(project_id, subject_id)
-
-    deleted_recordings = []
-    for sess in sessions:
-        deleted_recordings.extend(
-            recording_store.delete_recordings_for_session(project_id, sess["session_id"])
-        )
-        session_store.delete_session(project_id, sess["session_id"])
+    deleted_recordings = recording_store.delete_recordings_for_subject(project_id, subject_id)
 
     subject_store.delete_subject(project_id, subject_id)
 
@@ -229,84 +221,33 @@ def delete_subject(project_id: str, subject_id: str):
     return {"status": "success", "deleted_subject_id": subject_id}
 
 
-# =====================================
-# SESSIONS (empty containers -- recordings are added to them later,
-# whenever, via the endpoints below)
-# =====================================
-
-class SessionCreate(BaseModel):
-    name: Optional[str] = None
-
-
-@router.post("/api/projects/{project_id}/subjects/{subject_id}/sessions")
-def create_session(project_id: str, subject_id: str, session: SessionCreate):
-    _require_project(project_id)
-    if not subject_store.get_subject(project_id, subject_id):
-        raise HTTPException(status_code=404, detail="Subject not found.")
-    created = session_store.create_session(project_id, subject_id, name=session.name)
-    project_store.touch_project(project_id)
-    return created
-
-
-@router.get("/api/projects/{project_id}/subjects/{subject_id}/sessions")
-def get_sessions(project_id: str, subject_id: str):
-    _require_project(project_id)
-    if not subject_store.get_subject(project_id, subject_id):
-        raise HTTPException(status_code=404, detail="Subject not found.")
-    return session_store.get_sessions_for_subject(project_id, subject_id)
-
-
 @router.get("/api/projects/{project_id}/subjects/{subject_id}/summary")
 def get_subject_summary(project_id: str, subject_id: str):
-    """Subject-level counterpart to /api/projects/{id}/sessions/{id} --
-    a live-computed mean/SD summary built from every recording across
-    every one of this subject's sessions in this project."""
+    """Live-computed mean/SD summary built from every recording this
+    subject has in this project."""
     _require_project(project_id)
     if not subject_store.get_subject(project_id, subject_id):
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    sessions = session_store.get_sessions_for_subject(project_id, subject_id)
-    session_ids = [s["session_id"] for s in sessions]
-    return recording_store.compute_subject_summary(project_id, subject_id, session_ids)
+    return recording_store.compute_subject_summary(project_id, subject_id)
 
 
-@router.get("/api/projects/{project_id}/sessions/{session_id}")
-def get_session_detail(project_id: str, session_id: str):
-    """Full session detail: metadata plus a live-computed summary
-    (trials/mean/SD per task) built from whatever recordings currently
-    belong to this session -- never a stored snapshot, so adding a
-    recording later is always reflected here immediately."""
+class RecordingsSummaryRequest(BaseModel):
+    recording_ids: List[str]
+
+
+@router.post("/api/projects/{project_id}/recordings/summary")
+def get_recordings_summary(project_id: str, body: RecordingsSummaryRequest):
+    """Same live-computed Assessment-shaped summary as the subject
+    summary route, but for an arbitrary, caller-picked set of
+    recordings (e.g. hand-selected across the Select Recording
+    dropdown) instead of everything a subject has. POST (not GET)
+    because the recording id list can be long and doesn't belong in a
+    query string."""
     _require_project(project_id)
-    session = session_store.get_session(project_id, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
-
-    summary = recording_store.compute_session_summary(project_id, session_id)
-    return {**session, **summary}
-
-
-@router.delete("/api/projects/{project_id}/sessions/{session_id}")
-def delete_session(project_id: str, session_id: str):
-    """Deletes one session: its row, every recording inside it, and any
-    recording files on disk that only that session's recordings
-    referenced."""
-    _require_project(project_id)
-    if not session_store.get_session(project_id, session_id):
-        raise HTTPException(status_code=404, detail="Session not found.")
-
-    deleted_recordings = recording_store.delete_recordings_for_session(project_id, session_id)
-    session_store.delete_session(project_id, session_id)
-
-    candidate_paths = []
-    for r in deleted_recordings:
-        if r.get("patient_filepath"):
-            candidate_paths.append(r["patient_filepath"])
-        if r.get("ambient_filepath"):
-            candidate_paths.append(r["ambient_filepath"])
-    _delete_unreferenced_recordings(project_id, candidate_paths, recording_store.load_recordings(project_id))
-
-    project_store.touch_project(project_id)
-    return {"status": "success"}
+    if not body.recording_ids:
+        raise HTTPException(status_code=400, detail="recording_ids must not be empty.")
+    return recording_store.compute_recordings_summary(project_id, body.recording_ids)
 
 
 # =====================================
@@ -332,8 +273,8 @@ def get_recording_audio(project_id: str, path: str):
 # HARDWARE PREPARE/RELEASE -- NOT project-scoped
 # =====================================
 # There is exactly one serial device attached to the machine regardless
-# of which project's session is being recorded into, so "warm up the
-# mic" has no per-project meaning. These two stay global; the project
+# of which project's recording is being captured into, so "warm up
+# the mic" has no per-project meaning. These two stay global; the project
 # association happens down in add_live_recording below, once the
 # recording itself is being saved.
 
@@ -343,7 +284,7 @@ def prepare_recording():
     so that settle time can happen during the UI's pre-record
     countdown instead of after the actual recording request lands.
     Call this when the countdown starts, then pass the returned token
-    to POST /api/projects/{id}/sessions/{id}/recordings."""
+    to POST /api/projects/{id}/subjects/{id}/recordings."""
 
     try:
         token = prepare_serial()
@@ -377,7 +318,7 @@ def _preprocess_and_extract(patient_filepath: str, task: str) -> dict:
     then frequency filtering) on a temp WAV, then feature extraction on
     that cleaned copy. Pulled out into its own helper so it can run
     either inline (old behavior) or deferred, batched across a whole
-    session's recordings (see /recordings/extract below)."""
+    subject's recordings (see /recordings/extract below)."""
     raw_audio, sr = sf.read(patient_filepath, dtype="float32", always_2d=False)
     audio_dc = remove_dc_offset(raw_audio)
     audio_clean = apply_frequency_filtering(audio_dc, sr)
@@ -409,24 +350,24 @@ class LiveRecordingRequest(BaseModel):
     prepare_token: Optional[str] = None
 
 
-@router.post("/api/projects/{project_id}/sessions/{session_id}/recordings")
-def add_live_recording(project_id: str, session_id: str, payload: LiveRecordingRequest):
+@router.post("/api/projects/{project_id}/subjects/{subject_id}/recordings")
+def add_live_recording(project_id: str, subject_id: str, payload: LiveRecordingRequest):
     _require_project(project_id)
-    session = session_store.get_session(project_id, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
+    if not subject_store.get_subject(project_id, subject_id):
+        raise HTTPException(status_code=404, detail="Subject not found.")
 
-    # Serial = this take's 1-based position within this session+task.
+    date = date_key()
+    # Serial = this take's 1-based position within this subject+date+task.
     # Just a starting guess -- recording_dir() bumps it if a folder
     # for that exact serial+"live" is already on disk (e.g. an
     # earlier take here was deleted).
-    serial = len(recording_store.get_recordings_for_session_task(project_id, session_id, payload.task)) + 1
+    serial = len(recording_store.get_recordings_for_subject_date_task(project_id, subject_id, date, payload.task)) + 1
     take_dir = recording_dir(
-        project_id, session["subject_id"], session_id, session.get("name"),
+        project_id, subject_id, date,
         payload.task, serial, "live",
     )
 
-    base_name = recording_stem(session["subject_id"], payload.task)
+    base_name = recording_stem(subject_id, payload.task)
 
     try:
         patient_filepath, ambient_filepath, _audio = record_audio(
@@ -506,12 +447,13 @@ def add_live_recording(project_id: str, session_id: str, payload: LiveRecordingR
     # extraction are NOT run here anymore -- the take is logged with
     # features={} the moment it's quality-confirmed, and the frontend's
     # "Extract Features" button (top-right of the recording modal) is
-    # what triggers /api/projects/{id}/sessions/{id}/recordings/extract
-    # to batch-run this pipeline over every pending recording in the
-    # session at once.
+    # what triggers /api/projects/{id}/subjects/{id}/recordings/extract
+    # to batch-run this pipeline over every pending recording this
+    # subject has at once.
     recording = recording_store.add_recording(
         project_id,
-        session_id=session_id,
+        subject_id=subject_id,
+        date=date,
         task=payload.task,
         source="live",
         patient_filepath=stored_patient_filepath,
@@ -527,7 +469,7 @@ def add_live_recording(project_id: str, session_id: str, payload: LiveRecordingR
 
 
 # =====================================
-# UPLOAD -- any number of files, added to an existing session,
+# UPLOAD -- any number of files, added to a subject directly,
 # callable repeatedly
 # =====================================
 # Deliberately does NOT touch the clinical pipeline (verifier,
@@ -538,19 +480,19 @@ def add_live_recording(project_id: str, session_id: str, payload: LiveRecordingR
 # frequency filtering, so uploaded recordings show raw, unprocessed
 # biomarkers, same as the old upload path.
 
-def _save_upload(project_id: str, subject_id: str, session_id: str, session_name: str, upload: UploadFile, task: str, serial: int) -> str:
+def _save_upload(project_id: str, subject_id: str, date: str, upload: UploadFile, task: str, serial: int) -> str:
     ext = os.path.splitext(upload.filename or "")[1] or ".wav"
     filename = f"patient_{recording_stem(subject_id, task)}{ext}"
     # Uploaded files are patient-side only -- there's no ambient
     # channel or live hardware involved (see module docstring above).
-    upload_dir = recording_dir(project_id, subject_id, session_id, session_name, task, serial, "uploaded")
+    upload_dir = recording_dir(project_id, subject_id, date, task, serial, "uploaded")
     os.makedirs(upload_dir, exist_ok=True)
     filepath = os.path.join(upload_dir, filename)
     with open(filepath, "wb") as f:
         f.write(upload.file.read())
     # Stored (and later returned to the client) as a path relative to
     # this PROJECT's own folder -- e.g.
-    # "Subjects/RD-83331/Sessions/.../DDK/01_uploaded/patient_DDK_20260910-143205_RD-83331.wav" --
+    # "Subjects/RD-83331/Recordings/2026-09-12/DDK/01_uploaded/patient_DDK_20260910-143205_RD-83331.wav" --
     # matching the convention record_audio() already uses. Without this,
     # patient_filepath would be saved as a full filesystem path, which
     # _safe_recording_path() (used by the audio-playback endpoint below)
@@ -559,36 +501,37 @@ def _save_upload(project_id: str, subject_id: str, session_id: str, session_name
     return os.path.relpath(filepath, project_dir(project_id))
 
 
-@router.post("/api/projects/{project_id}/sessions/{session_id}/recordings/upload")
+@router.post("/api/projects/{project_id}/subjects/{subject_id}/recordings/upload")
 def upload_recordings(
     project_id: str,
-    session_id: str,
+    subject_id: str,
     task: str = Form(...),
     files: List[UploadFile] = File(...),
 ):
     _require_project(project_id)
-    session = session_store.get_session(project_id, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
+    if not subject_store.get_subject(project_id, subject_id):
+        raise HTTPException(status_code=404, detail="Subject not found.")
     if len(files) < 1:
         raise HTTPException(status_code=400, detail="At least 1 .wav file is required.")
 
+    date = date_key()
     created = []
     errors = []
-    next_serial = len(recording_store.get_recordings_for_session_task(project_id, session_id, task)) + 1
+    next_serial = len(recording_store.get_recordings_for_subject_date_task(project_id, subject_id, date, task)) + 1
     for upload in files:
         rel_filepath = None
         try:
-            rel_filepath = _save_upload(project_id, session["subject_id"], session_id, session.get("name"), upload, task, next_serial)
+            rel_filepath = _save_upload(project_id, subject_id, date, upload, task, next_serial)
             next_serial += 1
             abs_path = _recording_abspath(project_id, rel_filepath)
             # Same DC-offset + filtering pipeline the live path uses, so
-            # uploaded and live takes are comparable in one session mean.
+            # uploaded and live takes are comparable in one date group's mean.
             features = _preprocess_and_extract(abs_path, task)
             created.append(
                 recording_store.add_recording(
                     project_id,
-                    session_id=session_id,
+                    subject_id=subject_id,
+                    date=date,
                     task=task,
                     source="uploaded",
                     patient_filepath=rel_filepath,
@@ -611,22 +554,22 @@ def upload_recordings(
     return {"created": created, "errors": errors}
 
 
-@router.post("/api/projects/{project_id}/sessions/{session_id}/recordings/extract")
-def extract_session_features(project_id: str, session_id: str):
+@router.post("/api/projects/{project_id}/subjects/{subject_id}/recordings/extract")
+def extract_subject_features(project_id: str, subject_id: str):
     """Batch-runs preprocessing + feature extraction over every recording
-    in the session that's still pending it (features == {}) -- i.e. every
-    take logged via the live-recording flow since add_live_recording no
-    longer extracts inline. Triggered by the "Extract Features" button at
-    the top-right of the recording modal. A recording failing extraction
-    doesn't block the rest; it's reported back in `errors` and stays
-    pending so a re-run can retry it."""
+    this subject has that's still pending it (features == {}) -- i.e.
+    every take logged via the live-recording flow since add_live_recording
+    no longer extracts inline. Triggered by the "Extract Features" button
+    at the top-right of the recording modal. A recording failing
+    extraction doesn't block the rest; it's reported back in `errors` and
+    stays pending so a re-run can retry it."""
 
     _require_project(project_id)
-    if not session_store.get_session(project_id, session_id):
-        raise HTTPException(status_code=404, detail="Session not found.")
+    if not subject_store.get_subject(project_id, subject_id):
+        raise HTTPException(status_code=404, detail="Subject not found.")
 
     pending = [
-        r for r in recording_store.get_recordings_for_session(project_id, session_id)
+        r for r in recording_store.get_recordings_for_subject(project_id, subject_id)
         if not r.get("features")
     ]
 
@@ -646,12 +589,12 @@ def extract_session_features(project_id: str, session_id: str):
     return {"updated": updated, "errors": errors}
 
 
-@router.get("/api/projects/{project_id}/sessions/{session_id}/recordings")
-def get_recordings(project_id: str, session_id: str):
+@router.get("/api/projects/{project_id}/subjects/{subject_id}/recordings")
+def get_recordings(project_id: str, subject_id: str):
     _require_project(project_id)
-    if not session_store.get_session(project_id, session_id):
-        raise HTTPException(status_code=404, detail="Session not found.")
-    return recording_store.get_recordings_for_session(project_id, session_id)
+    if not subject_store.get_subject(project_id, subject_id):
+        raise HTTPException(status_code=404, detail="Subject not found.")
+    return recording_store.get_recordings_for_subject(project_id, subject_id)
 
 
 # =====================================
@@ -675,11 +618,11 @@ def get_recordings(project_id: str, session_id: str):
 SPECTROGRAM_MAX_FREQ_HZ = 4000
 
 
-@router.get("/api/projects/{project_id}/sessions/{session_id}/recordings/{recording_id}/spectrogram")
-def get_recording_spectrogram(project_id: str, session_id: str, recording_id: str):
+@router.get("/api/projects/{project_id}/subjects/{subject_id}/recordings/{recording_id}/spectrogram")
+def get_recording_spectrogram(project_id: str, subject_id: str, recording_id: str):
     _require_project(project_id)
     recording = recording_store.get_recording(project_id, recording_id)
-    if not recording or recording.get("session_id") != session_id:
+    if not recording or recording.get("subject_id") != subject_id:
         raise HTTPException(status_code=404, detail="Recording not found.")
 
     patient_filepath = recording.get("patient_filepath")
@@ -719,11 +662,11 @@ def get_recording_spectrogram(project_id: str, session_id: str, recording_id: st
 DDK_WAVEFORM_ENVELOPE_BINS = 600
 
 
-@router.get("/api/projects/{project_id}/sessions/{session_id}/recordings/{recording_id}/ddk-contour")
-def get_recording_ddk_contour(project_id: str, session_id: str, recording_id: str):
+@router.get("/api/projects/{project_id}/subjects/{subject_id}/recordings/{recording_id}/ddk-contour")
+def get_recording_ddk_contour(project_id: str, subject_id: str, recording_id: str):
     _require_project(project_id)
     recording = recording_store.get_recording(project_id, recording_id)
-    if not recording or recording.get("session_id") != session_id:
+    if not recording or recording.get("subject_id") != subject_id:
         raise HTTPException(status_code=404, detail="Recording not found.")
 
     patient_filepath = recording.get("patient_filepath")
@@ -749,11 +692,11 @@ def get_recording_ddk_contour(project_id: str, session_id: str, recording_id: st
     }
 
 
-@router.delete("/api/projects/{project_id}/sessions/{session_id}/recordings/{recording_id}")
-def delete_recording(project_id: str, session_id: str, recording_id: str):
+@router.delete("/api/projects/{project_id}/subjects/{subject_id}/recordings/{recording_id}")
+def delete_recording(project_id: str, subject_id: str, recording_id: str):
     _require_project(project_id)
     deleted = recording_store.delete_recording(project_id, recording_id)
-    if not deleted or deleted.get("session_id") != session_id:
+    if not deleted or deleted.get("subject_id") != subject_id:
         raise HTTPException(status_code=404, detail="Recording not found.")
 
     candidate_paths = []
@@ -772,22 +715,26 @@ def delete_recording(project_id: str, session_id: str, recording_id: str):
 # =====================================
 # Ported over from the standalone speech_motor_state / change_detector /
 # trajectory_mapper / baseline modules. app.clinical_history bridges
-# subject/session/recording data into the assessment-shaped records
-# those modules expect -- see that file for the full explanation.
+# subject/recording data into the assessment-shaped records those
+# modules expect -- see that file for the full explanation. One
+# calendar-date group (see project_paths.date_key) is the "point in
+# time" unit these routes score, replacing the old one-session-per-
+# point scoring -- this is a minimal swap, not a redesign of the
+# engine itself (see clinical_history.py's module docstring).
 
 
-@router.get("/api/projects/{project_id}/sessions/{session_id}/motor-state")
-def get_session_motor_state(project_id: str, session_id: str):
+@router.get("/api/projects/{project_id}/subjects/{subject_id}/dates/{date}/motor-state")
+def get_date_motor_state(project_id: str, subject_id: str, date: str):
     """Speech motor-state domain scores (Stability, Timing, Coordination,
-    Phonatory Control) for a single session, computed live from its
-    current recordings. 404s if the session doesn't exist; 422 if the
-    subject has no sex on file, since the scoring model requires one."""
+    Phonatory Control) for one subject's recordings on one calendar date,
+    computed live from those recordings. 404s if the subject doesn't
+    exist; 422 if the subject has no sex on file, since the scoring
+    model requires one."""
     _require_project(project_id)
-    session = session_store.get_session(project_id, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
+    subject = subject_store.get_subject(project_id, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found.")
 
-    subject = subject_store.get_subject(project_id, session["subject_id"])
     sex = (subject or {}).get("sex")
     if sex not in ("Male", "Female"):
         raise HTTPException(
@@ -795,17 +742,17 @@ def get_session_motor_state(project_id: str, session_id: str):
             detail="Subject sex must be set to 'Male' or 'Female' before motor-state scoring is available.",
         )
 
-    return build_assessment_record(project_id, session, sex)
+    return build_assessment_record(project_id, subject_id, date, sex)
 
 
 @router.get("/api/projects/{project_id}/subjects/{subject_id}/insights")
 def get_subject_insights(project_id: str, subject_id: str):
     """Longitudinal clinical insights for a subject: rolling baseline,
-    the latest session's deviation from that baseline, and the full
+    the latest date group's deviation from that baseline, and the full
     change-detector trajectory (deltas/Z-scores/alerts) across their
-    quality-gated session history within this project.
+    quality-gated date-group history within this project.
 
-    Sessions that failed the quality gate (low recording quality or
+    Date groups that failed the quality gate (low recording quality or
     detected clipping) are excluded from history the same way the
     original assessment_store-backed engine excluded them -- see
     baseline.get_valid_patient_history.
@@ -830,18 +777,18 @@ def get_subject_insights(project_id: str, subject_id: str):
 
     return {
         "subject_id": subject_id,
-        "sessions_analyzed": len(history),
+        "dates_analyzed": len(history),
         "baseline": baseline,
         "deviation_from_baseline": deviation,
         "trajectory": trajectory,
     }
 
 
-@router.get("/api/projects/{project_id}/sessions/{session_id}/fatigue")
-def get_session_fatigue(project_id: str, session_id: str, task: str):
-    """Within-session fatigue curve for one task (e.g. task=DDK): scores
-    each recording in that task individually, in capture order, and runs
-    them through motor_fatigue_curve.analyze_fatigue_curve.
+@router.get("/api/projects/{project_id}/subjects/{subject_id}/dates/{date}/fatigue")
+def get_date_fatigue(project_id: str, subject_id: str, date: str, task: str):
+    """Within-date-group fatigue curve for one task (e.g. task=DDK):
+    scores each recording in that task individually, in capture order,
+    and runs them through motor_fatigue_curve.analyze_fatigue_curve.
 
     Every trial is currently labeled "continuous" -- there's no
     rest-period field anywhere in the data model yet, so recovery/
@@ -850,11 +797,10 @@ def get_session_fatigue(project_id: str, session_id: str, task: str):
     clinical_history.py for the full explanation.
     """
     _require_project(project_id)
-    session = session_store.get_session(project_id, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
+    subject = subject_store.get_subject(project_id, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found.")
 
-    subject = subject_store.get_subject(project_id, session["subject_id"])
     sex = (subject or {}).get("sex")
     if sex not in ("Male", "Female"):
         raise HTTPException(
@@ -862,11 +808,11 @@ def get_session_fatigue(project_id: str, session_id: str, task: str):
             detail="Subject sex must be set to 'Male' or 'Female' before fatigue scoring is available.",
         )
 
-    trials = build_trial_scores(project_id, session_id, task, sex)
+    trials = build_trial_scores(project_id, subject_id, date, task, sex)
     if not trials:
         raise HTTPException(
             status_code=422,
-            detail=f"No scoreable recordings found for task '{task}' in this session.",
+            detail=f"No scoreable recordings found for task '{task}' on this date.",
         )
 
     return analyze_fatigue_curve(trials)
