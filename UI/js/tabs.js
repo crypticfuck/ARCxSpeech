@@ -38,6 +38,7 @@
     }
 
     const exportBtn = document.getElementById('export-btn');
+    const settingsBtn = document.getElementById('settings-btn');
 
     function render() {
         tabStrip.innerHTML = '';
@@ -92,6 +93,13 @@
         if (exportBtn) {
             const activeTab = tabs.find(function (t) { return t.id === activeTabId; });
             exportBtn.style.display = (activeTab && activeTab.kind === 'home') ? 'none' : '';
+        }
+
+        // Settings (gear) is a Home-only affordance -- hide it inside a
+        // project tab, same mechanism as exportBtn above but inverted.
+        if (settingsBtn) {
+            const activeTab = tabs.find(function (t) { return t.id === activeTabId; });
+            settingsBtn.style.display = (activeTab && activeTab.kind === 'home') ? '' : 'none';
         }
     }
 

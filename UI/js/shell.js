@@ -65,6 +65,11 @@ document.getElementById("export-btn")?.addEventListener("click", () => {
     alert("Export flow goes here (CSV / study bundle export).");
 });
 
+// ================= Settings (stub) =================
+document.getElementById("settings-btn")?.addEventListener("click", () => {
+    alert("Settings panel goes here.");
+});
+
 // ================= Theme toggle =================
 // Every tab's content now lives in this same document (see UI/js/tabs.js),
 // so toggling a class on document.body is all that's needed -- normal CSS

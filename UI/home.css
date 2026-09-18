@@ -15,6 +15,10 @@
         --text-muted: #8A8A8A;
         --accent-red: #E5484D;
         --accent-blue: #6EA8FE;
+        --accent-purple: #B39DFB;
+        --accent-green: #59D9A0;
+        --accent-amber: #F0B65C;
+        --accent-teal: #5FD4D6;
     }
 
     * { box-sizing: border-box; }
@@ -470,6 +474,22 @@
         color: var(--text-primary);
     }
 
+    .icon-only-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: color .15s ease;
+    }
+
+    .icon-only-button:hover {
+        color: var(--text-primary);
+    }
+
     /* ---------- Page layout ---------- */
 
     #layout {
@@ -487,6 +507,12 @@
         max-width: 1200px;
         margin: 0 auto;
         padding: 28px 24px 60px 24px;
+        /* Very soft glow seated behind the heading/box so the page reads
+           as having *some* depth instead of flat black -- home view
+           only, #layout doesn't exist outside this template. Faint by
+           design: this should be felt, not seen. */
+        background-image: radial-gradient(ellipse 720px 320px at 20% 0%, rgba(110, 168, 254, 0.05), transparent 70%);
+        background-repeat: no-repeat;
     }
 
     #main-col { flex: 1; min-width: 0; }
@@ -496,6 +522,45 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
+    }
+
+    /* ---------- Home page heading ---------- */
+    /* Static page-level context so the projects box isn't the only thing
+       on the page -- no data, no interactivity, just gives the layout a
+       top of hierarchy to hang off instead of dropping straight into a
+       box on black. */
+
+    .home-heading {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 4px 0 22px 2px;
+    }
+
+    .home-heading-eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: .08em;
+    }
+
+
+    .home-heading-title {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: -.01em;
+        color: var(--text-primary);
+    }
+
+    .home-heading-sub {
+        margin: 0;
+        font-size: 13px;
+        color: var(--text-tertiary);
     }
 
     /* ---------- Generic box ---------- */
@@ -533,40 +598,67 @@
 
     .box-body { padding: 4px 18px 18px 18px; }
 
+    /* Home's own "Projects" box only -- scoped via the #main-col
+       ancestor so it doesn't touch the Subjects box in the project view,
+       which reuses these same .box/.box-header class names (see
+       shell.html). Adds a hairline top accent and a bit more lift so
+       the one box on the page doesn't sit totally flush with the
+       background. */
+    #main-col .box {
+        position: relative;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    #main-col .box::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple) 45%, transparent 90%);
+        opacity: .55;
+    }
+
+    #main-col .box-header { padding: 18px 20px 14px 20px; justify-content: flex-end; }
+    #main-col .box-body { padding: 4px 20px 20px 20px; }
+
     /* ---------- Projects grid ---------- */
 
     #projects-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
+        gap: 14px;
     }
 
     .project-card {
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        gap: 14px;
+        gap: 18px;
         background-color: var(--bg-box-inner);
         border: 1px solid var(--border);
         border-radius: 12px;
         padding: 16px;
         cursor: pointer;
-        transition: background-color .15s ease, border-color .15s ease, transform .1s ease;
+        transition: background-color .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease;
         text-align: left;
         font-family: inherit;
         color: inherit;
-        min-height: 128px;
+        min-height: 140px;
     }
 
     .project-card:hover {
         background-color: var(--bg-box-hover);
         border-color: var(--border-strong);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
     }
 
     .project-card-top {
         display: flex;
         align-items: flex-start;
-        justify-content: flex-end;
+        justify-content: space-between;
     }
 
     .project-card-top-right {
@@ -589,6 +681,22 @@
         color: var(--accent-red);
     }
 
+    /* Purely decorative per-project monogram -- initials + a colour
+       cycled deterministically from the project name (see home.js).
+       No new state, just gives each card its own identity instead of
+       two lines of grey text in an outlined box. */
+    .project-card-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+    }
+
+    .project-card-icon svg { width: 24px; height: 24px; }
+
+    .project-card:hover .project-card-icon { color: var(--text-secondary); }
+
     .project-name {
         font-size: 13.5px;
         font-weight: 600;
@@ -606,23 +714,33 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-        gap: 8px;
+        gap: 10px;
         border-style: dashed;
         color: var(--text-tertiary);
-        min-height: 128px;
+        min-height: 140px;
+        transition: background-color .15s ease, border-color .15s ease, color .15s ease;
     }
 
-    .project-card--new:hover { color: var(--text-primary); }
+    .project-card--new:hover {
+        color: var(--text-primary);
+        border-color: var(--accent-blue);
+        background-color: rgba(110, 168, 254, 0.06);
+    }
 
     .new-plus {
-        width: 30px;
-        height: 30px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
         border: 1px solid var(--border-strong);
         display: flex;
         align-items: center;
         justify-content: center;
         color: inherit;
+        transition: border-color .15s ease;
+    }
+
+    .project-card--new:hover .new-plus {
+        border-color: var(--accent-blue);
     }
 
     .new-label { font-size: 12px; font-weight: 500; }

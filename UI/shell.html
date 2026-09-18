@@ -123,6 +123,12 @@
 
             <div id="menubar-spacer" class="pywebview-drag-region"></div>
             <button class="pill-button" id="export-btn" style="padding: 5px 14px;">Export</button>
+            <button class="icon-only-button" id="settings-btn" title="Settings" aria-label="Settings" style="width: 30px; height: 30px; margin-left: 4px;">
+                <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                    <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+                </svg>
+            </button>
             <div class="menubar-menu" id="profile-menu">
                 <button class="add-icon-button" id="profile-btn" title="Profile" style="width: 26px; height: 26px; margin-left: 4px;">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -194,9 +200,17 @@
 
         <!-- ---------------- MAIN: PROJECTS ---------------- -->
         <div id="main-col">
+
+            <!-- Static page heading -- no data, no behavior, just gives
+                 the page somewhere to start before the box. -->
+            <div class="home-heading">
+                <div class="home-heading-eyebrow">Arc Labs</div>
+                <h1 class="home-heading-title">Projects</h1>
+                <p class="home-heading-sub">Pick up where you left off, or start something new.</p>
+            </div>
+
             <div class="box">
                 <div class="box-header">
-                    <span class="box-title">Projects</span>
                     <span class="box-count" id="project-count">4</span>
                 </div>
                 <div class="box-body">
@@ -274,7 +288,7 @@
                 </svg>
             </button>
 
-            <div id="recording-select-wrap" class="is-hidden">
+            <div id="recording-select-wrap">
                 <button class="pill-button" id="select-recording-btn" title="Select recording">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align: -2px; margin-right: 6px;">
                         <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4Z" stroke="currentColor" stroke-width="1.6"/>
@@ -461,68 +475,6 @@
                         <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
                     </svg>
                 </button>
-            </div>
-        </div>
-
-
-        <!-- ============ Subject picker modal ============
-             Design pass for the "open a project -> land on nothing" moment:
-             this panel is the first of three things that take turns
-             occupying the empty pinboard area -- see
-             updatePinboardEmptyState() in project.js, which is the single
-             place that decides between this panel, #pinboard-no-target-msg,
-             and the "Select Recording" dropdown becoming visible, based on
-             whether a subject's been picked yet and whether an actual
-             analysis target has been set. This one shows only when
-             neither has happened. Search filters the rows below by
-             name/id/group (see filterSubjectPickerRows() in project.js),
-             and the search bar animates from vertically-centered (idle) to
-             pinned-to-top (once there's a query). Rows are rendered from
-             the real SUBJECTS list by renderSubjectPicker() in project.js
-             (kept in sync with #subjects-list, called wherever
-             renderSubjects() is) -- #subjectPickerList itself starts empty
-             here. Each row is a flat button (no per-subject sessions
-             dropdown/accordion); a click calls pickSubjectFromPicker(),
-             which browses into that subject's recordings and opens the
-             "Select Recording" dropdown (closing this panel) so the user
-             can pick a specific recording or several -- it doesn't set the
-             subject itself as the analysis target; that's still done via
-             "Analyze Subject" from that dropdown's row flyout.
-             The "Select Recording" dropdown
-             (#recording-select-dropdown, Subjects -> Sessions ->
-             Recordings) is completely untouched and still fully
-             functional -- it's just hidden (#recording-select-wrap.is-hidden
-             in the HTML, toggled by updatePinboardEmptyState()) until a
-             subject's been picked here, so the initial "open a project"
-             moment shows only this search panel.
-
-             This layer is a sibling of #secondary-menubar/#nav-strip (not a
-             child of #nav-strip) and spans the full #project-view-page --
-             i.e. the whole area below the titlebar -- so the modal centers
-             against that full area rather than just the pinboard canvas.
-             Background is a hardcoded black (not a theme variable) so it
-             reads the same in light or dark mode, same idea as the
-             always-black terminal widget elsewhere. -->
-        <div class="subject-picker-modal-layer" id="subjectPickerModalLayer">
-            <div class="subject-picker-modal" id="subjectPickerModal">
-                <div class="subject-picker-search">
-                    <svg class="subject-picker-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
-                        <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                    </svg>
-                    <input type="text" id="subjectPickerSearchInput" placeholder="Search subjects&hellip;" autocomplete="off">
-                </div>
-
-                <!-- Populated by renderSubjectPicker() in project.js from
-                     the real SUBJECTS list -- starts empty. -->
-                <div class="subject-picker-list" id="subjectPickerList"></div>
-
-                <!-- Shown in place of the list once there's a query with no
-                     matches (empty otherwise/hidden at idle -- see
-                     .visible below and filterSubjectPickerRows() in
-                     project.js, which also handles the search bar's
-                     idle-centered -> pinned-to-top animation). -->
-                <div class="subject-picker-hint" id="subjectPickerHint"></div>
             </div>
         </div>
 

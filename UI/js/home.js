@@ -114,6 +114,16 @@ function createHomeView(container, options) {
         }
     }
 
+    // Purely cosmetic -- every card gets the same small waveform glyph
+    // (a nod to what the app actually does), monochrome and unfilled so
+    // it reads as an icon, not a badge. No per-project state.
+    const PROJECT_CARD_ICON = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12h2M7 8v8M11 4v16M15 8v8M19 10v4M21 12h0"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    `;
+
     function renderProjectCard(project) {
         // A plain div (not a <button>) because it now needs to contain
         // its own ellipsis button -- nested <button>s are invalid HTML
@@ -133,6 +143,7 @@ function createHomeView(container, options) {
 
         card.innerHTML = `
             <div class="project-card-top">
+                <div class="project-card-icon">${PROJECT_CARD_ICON}</div>
                 <div class="project-card-top-right">
                     <button type="button" class="row-ellipsis-btn" title="Delete Project" aria-label="Delete Project">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2m2 0v13a2 2 0 01-2 2H9a2 2 0 01-2-2V7h10zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>

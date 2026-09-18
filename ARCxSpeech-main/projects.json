@@ -1,20 +1,20 @@
 [
   {
-    "id": "5b5238e6-9704-438a-9159-7673c7c56f6a",
-    "name": "Yoshi",
-    "icon": "Y",
-    "color": "#8f8f95",
-    "status": "active",
-    "createdAt": "2026-09-10T13:47:59.993416",
-    "lastEditedAt": "2026-09-10T13:54:58.352504"
-  },
-  {
-    "id": "292f44f9-7fff-4383-8432-23650288364d",
-    "name": "Pranav",
-    "icon": "P",
+    "id": "c6fff9f0-bd0c-47ec-8062-888dd5b1c61a",
+    "name": "Yashveer Singh Panvar",
+    "icon": "YS",
     "color": "#e8a33d",
     "status": "active",
-    "createdAt": "2026-09-11T01:29:03.876814",
-    "lastEditedAt": "2026-09-18T09:59:00.092348"
+    "createdAt": "2026-09-18T13:51:19.301590",
+    "lastEditedAt": "2026-09-18T13:57:50.546905"
+  },
+  {
+    "id": "7749f6fc-9b4b-4a57-820a-6d4e4d80440c",
+    "name": "Akshit Gupta",
+    "icon": "AG",
+    "color": "#8f8f95",
+    "status": "active",
+    "createdAt": "2026-09-18T13:51:38.621002",
+    "lastEditedAt": "2026-09-18T13:55:10.762088"
   }
 ]

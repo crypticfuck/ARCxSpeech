@@ -14,19 +14,6 @@
         position: relative;
     }
 
-/* Hidden on initial "open a project" load, before any subject has been
-   picked -- the subject-picker search panel (see #subjectPickerModalLayer
-   in shell.html) is what's shown instead. Toggled by
-   updatePinboardEmptyState() in project.js, which is also what decides
-   between the picker panel and #pinboard-no-target-msg (see the comment
-   there in theme.css); this wrap appears the moment a subject's been
-   picked (from search, or browsed to directly), whether or not an actual
-   analysis target has been set yet, and disappears again if both are
-   cleared. */
-#recording-select-wrap.is-hidden {
-        display: none;
-    }
-
 #recording-select-dropdown {
         position: absolute;
         top: calc(100% + 8px);
@@ -102,6 +89,22 @@
 
 #recording-multiselect-bar.open {
         display: flex;
+        /* Same rise + scale-in used by #recording-select-dropdown.open
+           above -- see updateRecordingMultiselectBar() in project.js,
+           which now toggles .open/.closing the same way
+           open/closeRecordingSelectDropdown() do for the dropdown itself,
+           instead of an instant display:none/flex pop. */
+        animation: recordingDropdownOpen .18s ease;
+    }
+
+/* Mirror-image of .open, played while the bar is on its way out -- same
+   pattern as #recording-select-dropdown.closing above (display:flex held
+   for the animation's duration, "forwards" so it stays faded/scaled-down
+   for the one frame between animationend and updateRecordingMultiselectBar()
+   actually removing the class). */
+#recording-multiselect-bar.closing {
+        display: flex;
+        animation: recordingDropdownClose .15s ease forwards;
     }
 
 #recording-multiselect-count {
@@ -116,277 +119,6 @@
     #subjects-list,
     #recordings-list {
         border-radius: 0 0 12px 12px;
-    }
-
-/* ==========================================================================
-   Subject picker modal (VISUAL MOCKUP ONLY -- see the HTML comment above
-   #subjectPickerModalLayer in shell.html). Centered over the whole area
-   below the titlebar (secondary-menubar + nav-strip together, via
-   .subject-picker-modal-layer spanning #project-view-page) rather than
-   just the pinboard canvas, in place of the plain "Select a subject..."
-   text when a project first opens. Colors here are hardcoded rather than
-   pulled from the theme tokens on purpose -- the panel should stay a
-   solid black card with visible borders in both light and dark mode, so
-   it can't just reuse --bg-box/--text-primary etc. (those flip to
-   near-white/near-black and would make the panel unreadable in light
-   mode).
-   ========================================================================== */
-
-/* Full-bleed centering layer -- see the HTML comment above
-   #subjectPickerModalLayer in shell.html for why this is a sibling of
-   #nav-strip rather than a child of it. pointer-events:none so it never
-   blocks clicks to anything else on the page outside the modal itself;
-   the modal re-enables pointer-events on itself below. */
-    .subject-picker-modal-layer {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 20;
-        pointer-events: none;
-    }
-
-/* Hidden once a subject's been picked (browsed to, or picked here) --
-   see updatePinboardEmptyState() in project.js, the single place that
-   decides between this panel, #pinboard-no-target-msg (theme.css), and
-   the "Select Recording" dropdown for the empty pinboard area. */
-    .subject-picker-modal-layer.is-hidden {
-        display: none;
-    }
-
-/* Floating ghost element used only during the search-bar -> dropdown-
-   button morph (see morphSearchBarToDropdownButton() in project.js) --
-   position:fixed so it travels across the viewport unaffected by the
-   picker panel disappearing partway through its animation.
-   left/top/width/height/border-radius are all driven by inline styles
-   set from JS at each stage; only the transition itself (which
-   properties animate, at what easing) lives here. Colors deliberately
-   don't reuse the picker panel's own solid-black look -- once the dot
-   detaches and travels alone across the menubar, solid black is
-   invisible against this app's default (also solid-black, see
-   --bg-page in theme.css) background. --text-muted's mid-gray plus a
-   light ring (for contrast against dark backgrounds) and a dark
-   drop-shadow (for contrast against light-theme backgrounds) keeps it
-   visible either way, instead of picking one theme and quietly
-   disappearing in the other. */
-.subject-picker-morph {
-        position: fixed;
-        z-index: 60;
-        background-color: var(--text-muted, #8A8A8A);
-        border: 2px solid var(--text-primary, #F9F9F9);
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.3);
-        box-sizing: border-box;
-        pointer-events: none;
-        transition-property: left, top, width, height, border-radius;
-        transition-timing-function: ease;
-    }
-
-.subject-picker-modal {
-        width: 720px;
-        max-width: calc(100% - 48px);
-        /* Fixed height (not max-height) so the panel doesn't jump around
-           as filtering shows/hides rows -- the list scrolls internally
-           instead (.subject-picker-list has overflow-y:auto). */
-        height: min(400px, calc(100% - 48px));
-        display: flex;
-        flex-direction: column;
-        background-color: #000000;
-        border-radius: 8px;
-        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
-        overflow: hidden;
-        pointer-events: auto;
-        cursor: default;
-    }
-
-.subject-picker-search {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        width: 560px;
-        max-width: calc(100% - 32px);
-        /* Vertically centered by default (idle state, no query yet) --
-           margin-top/bottom:auto splits the panel's free space evenly
-           above and below since .subject-picker-list/.subject-picker-hint
-           are display:none at this point and contribute no height.
-           .is-searching below pins it near the top instead once there's
-           a query. The move between the two is animated with a JS FLIP
-           transform (see filterSubjectPickerRows()/setSearching() in
-           project.js) rather than a CSS transition on margin, since a
-           transition can't interpolate to/from "auto". */
-        margin: auto auto auto auto;
-        padding: 7px 12px;
-        background-color: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        transition: border-color .15s ease;
-    }
-
-.subject-picker-search:focus-within {
-        border-color: rgba(255, 255, 255, 0.22);
-    }
-
-/* Once there's a query, the search bar pins near the top (like its
-   original static position) so the results list has room to open up
-   underneath it. */
-.subject-picker-modal.is-searching .subject-picker-search {
-        margin-top: 16px;
-        margin-bottom: 20px;
-    }
-
-/* Idle-only nudge so the bar sits a bit above dead-center rather than
-   exactly in the middle of the panel -- purely cosmetic, layered on top
-   of the margin:auto centering above. Picked up automatically by
-   setSearching()'s FLIP animation in project.js (it measures whatever
-   this resolves to rather than hardcoding a pixel value), so tweaking
-   this number is the only thing needed to change the resting position. */
-.subject-picker-modal:not(.is-searching) .subject-picker-search {
-        transform: translateY(-60px);
-    }
-
-.subject-picker-search-icon {
-        flex-shrink: 0;
-        color: #6E6E6E;
-    }
-
-.subject-picker-search input {
-        flex: 1;
-        min-width: 0;
-        font-family: inherit;
-        font-size: 13px;
-        font-weight: 500;
-        color: #F9F9F9;
-        background: transparent;
-        border: none;
-        outline: none;
-    }
-
-.subject-picker-search input::placeholder {
-        color: #6E6E6E;
-    }
-
-.subject-picker-list {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 4px 12px 14px 12px;
-        /* Hidden until there's a search query with at least one match --
-           see filterSubjectPickerRows() in project.js, which toggles
-           .has-matches. Panel opens onto just the search bar, not a full
-           subject roster. */
-        display: none;
-        flex-direction: column;
-    }
-
-.subject-picker-list.has-matches {
-        display: flex;
-        animation: subjectPickerFadeIn .18s ease;
-    }
-
-.subject-picker-hint {
-        flex: 1;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        font-size: 12px;
-        font-weight: 500;
-        color: #6E6E6E;
-        text-align: center;
-    }
-
-.subject-picker-hint.visible {
-        display: flex;
-        animation: subjectPickerFadeIn .18s ease;
-    }
-
-@keyframes subjectPickerFadeIn {
-        from { opacity: 0; transform: translateY(-4px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-.subject-picker-group {
-        display: flex;
-        flex-direction: column;
-        /* Division lines between subjects -- skipped on the last group so
-           the list doesn't end on a stray rule. */
-        border-bottom: 1px solid rgba(255, 255, 255, 0.16);
-    }
-
-/* Rows that don't match the current search query -- see
-   filterSubjectPickerRows() in project.js. */
-.subject-picker-group.picker-row-hidden {
-        display: none;
-    }
-
-.subject-picker-group:last-child {
-        border-bottom: none;
-    }
-
-.subject-picker-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        width: 100%;
-        padding: 10px 10px;
-        font-family: inherit;
-        background: transparent;
-        border: none;
-        text-align: left;
-        cursor: pointer;
-        transition: background-color .15s ease;
-    }
-
-.subject-picker-row:hover {
-        background-color: rgba(255, 255, 255, 0.07);
-    }
-
-.subject-picker-avatar {
-        flex-shrink: 0;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background-color: rgba(255, 255, 255, 0.08);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 600;
-        color: #ABABAB;
-    }
-
-.subject-picker-info {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-.subject-picker-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: #F9F9F9;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-.subject-picker-sub {
-        font-size: 11px;
-        font-weight: 500;
-        color: #6E6E6E;
-    }
-
-.subject-picker-list::-webkit-scrollbar {
-        width: 6px;
-    }
-
-.subject-picker-list::-webkit-scrollbar-thumb {
-        background-color: #333333;
-        border-radius: 10px;
     }
 
 /* ==========================================================================

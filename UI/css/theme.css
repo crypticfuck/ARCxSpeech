@@ -76,11 +76,6 @@ body {
         width: 100%;
         display: flex;
         flex-direction: column;
-        /* Positioned so .subject-picker-modal-layer (a direct child, see
-           shell.html) can span it with inset:0 and center the subject
-           picker modal against the whole area below the titlebar --
-           secondary-menubar + nav-strip together -- rather than just the
-           pinboard canvas. */
         position: relative;
     }
 
@@ -763,17 +758,16 @@ body.theme-light #app-sidebar {
         transform: translate(0px, 0px) scale(1);
     }
 
-/* Centered nudge shown once a subject's been picked (dropdown open on
-   their recordings) but no recording has been chosen yet -- see
+/* Centered nudge shown whenever no analysis target has been chosen yet
+   (the "Select Recording" dropdown itself is always visible and handles
+   browsing Subjects -> Sessions -> Recordings) -- see
    updatePinboardEmptyState() in project.js, the single place that
-   decides between this, the subject-picker search panel
-   (#subjectPickerModalLayer, subjects.css), and the "Select Recording"
-   dropdown for the empty pinboard area. Positioned against #nav-strip
-   (the fixed viewport) rather than #pinboard-canvas (the pannable/
-   zoomable layer), so it always sits in the middle of the visible screen
-   regardless of how far the board has been panned or zoomed.
-   pointer-events: none so it never blocks board panning or
-   clicks-through to whatever's under it. */
+   decides between this and #pinboard-no-widgets-msg for the empty
+   pinboard area. Positioned against #nav-strip (the fixed viewport)
+   rather than #pinboard-canvas (the pannable/zoomable layer), so it
+   always sits in the middle of the visible screen regardless of how far
+   the board has been panned or zoomed. pointer-events: none so it never
+   blocks board panning or clicks-through to whatever's under it. */
     .pinboard-no-target-msg {
         position: absolute;
         inset: 0;
