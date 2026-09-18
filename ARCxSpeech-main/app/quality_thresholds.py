@@ -93,4 +93,4 @@ MIN_QUALITY_PCT_FOR_CLINICAL = QUALITY_POOR_PCT
 # agree with each other make the composite score more trustworthy.
 CONFIDENCE_HIGH_SPREAD_DB = 6.0
 CONFIDENCE_MEDIUM_SPREAD_DB = 12.0
-# spread above CONFIDENCE_MEDIUM_SPREAD_DB -> "Low" confidence
+# spread above CONFIDENCE_MEDIUM_SPREAD_DB -> "Low" confidence

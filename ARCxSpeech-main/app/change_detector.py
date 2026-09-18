@@ -326,4 +326,4 @@ def analyze_patient_trajectory(assessments: List[Dict[str, Any]]) -> Dict[str, A
         "global_status": global_status,
         "domains": results,
         "alerts": alerts
-    }
+    }

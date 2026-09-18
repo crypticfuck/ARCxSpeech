@@ -612,4 +612,4 @@ def aggregate_recording_quality_metrics(metrics_list):
         if len(values) > 1:
             sd_dict[key] = round(float(np.std(values)), 3)
 
-    return mean_dict, sd_dict
+    return mean_dict, sd_dict

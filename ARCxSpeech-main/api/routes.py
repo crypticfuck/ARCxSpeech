@@ -474,13 +474,13 @@ def add_live_recording(project_id: str, subject_id: str, payload: LiveRecordingR
 # UPLOAD -- any number of files, added to a subject directly,
 # callable repeatedly
 # =====================================
-# Deliberately does NOT touch the clinical pipeline (verifier,
+# Deliberately does NOT touch the ambient/quality pipeline (verifier,
 # recording_quality, quality_thresholds, ambient_analyzer) -- there's no
-# ambient channel or live hardware involved for an uploaded file. Features
-# are extracted directly from the uploaded file with plain
-# extract_vowel_features/extract_ddk_features -- no DC-offset removal or
-# frequency filtering, so uploaded recordings show raw, unprocessed
-# biomarkers, same as the old upload path.
+# ambient channel or live hardware involved for an uploaded file, so
+# uploaded rows have quality_metrics/quality_classification = None.
+# Features ARE extracted through the same DC-offset + frequency-filter
+# preprocessing the live path uses (see _preprocess_and_extract), so
+# uploaded and live takes are comparable inside one date group.
 
 def _save_upload(project_id: str, subject_id: str, date: str, upload: UploadFile, task: str, serial: int) -> str:
     ext = os.path.splitext(upload.filename or "")[1] or ".wav"

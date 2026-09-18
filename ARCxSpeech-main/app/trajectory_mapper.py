@@ -263,4 +263,4 @@ def verify_mathematical_integrity(trajectory_result: Dict[str, Any]) -> Dict[str
         else:
             is_valid = abs(sum_impacts - net_delta) < 0.1
         results[domain] = is_valid
-    return results
+    return results

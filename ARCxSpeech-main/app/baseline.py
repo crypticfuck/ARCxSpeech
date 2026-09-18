@@ -449,4 +449,4 @@ def compute_trend_direction(
         "slope_normalized": round(float(slope_normalized), 3),
         "direction": direction,
         "n_sessions_analyzed": len(vals),
-    }
+    }

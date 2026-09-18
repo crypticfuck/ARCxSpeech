@@ -196,4 +196,4 @@ def get_patient_assessment_history(project_id: str, subject_id: str) -> List[Dic
             continue
         records.append(build_assessment_record(project_id, subject_id, date, sex, summary=summary))
 
-    return records
+    return records
