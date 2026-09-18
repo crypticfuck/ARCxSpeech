@@ -2327,6 +2327,12 @@ function openAddRecordingModal() {
         showToast("Select a subject first.");
         return;
     }
+    // A review card left over from a previous take must never survive
+    // into a new modal: its Re-record button deletes the CURRENT
+    // subject's last recording.
+    hideQualityCheck();
+    if (taskRecordBtn) taskRecordBtn.style.display = "";
+    taskPrompt?.classList.remove("is-hidden");
     if (recordingModalForm) recordingModalForm.reset();
     updateRecordingCustomFieldVisibility();
     setRecordingTaskType("Sustained");
@@ -2337,6 +2343,7 @@ function openAddRecordingModal() {
 
 function closeAddRecordingModal() {
     finishTaskRecording(true);
+    hideQualityCheck();
     if (recordingModalOverlay) recordingModalOverlay.classList.remove("visible");
 }
 
@@ -2652,12 +2659,20 @@ uploadRecordingInput?.addEventListener("change", async () => {
         return;
     }
 
-    const newRecordings = created.map(mapRecording);
+    // Server returns { created: [...], errors: [...] }, not a bare array.
+    const createdRows = Array.isArray(created) ? created : (created && created.created) || [];
+    const uploadErrors = (created && !Array.isArray(created) && created.errors) || [];
+    const newRecordings = createdRows.map(mapRecording);
     if (!RECORDINGS[subjectId]) RECORDINGS[subjectId] = [];
     RECORDINGS[subjectId].push(...newRecordings);
     if (selectedSubject && selectedSubject.id === subjectId) renderRecordings();
     invalidateSubjectAnalysisCache(subjectId);
-    showToast(`${newRecordings.length} recording${newRecordings.length > 1 ? "s" : ""} uploaded & logged`);
+    if (uploadErrors.length) {
+        console.error("Upload errors:", uploadErrors);
+        showToast(`${newRecordings.length} uploaded, ${uploadErrors.length} failed: ${uploadErrors.map(e => e.filename).join(", ")}`);
+    } else {
+        showToast(`${newRecordings.length} recording${newRecordings.length > 1 ? "s" : ""} uploaded & logged`);
+    }
     broadcastProjectDataChanged();
 });
 

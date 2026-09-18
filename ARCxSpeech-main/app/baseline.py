@@ -20,6 +20,7 @@ import numpy as np
 from scipy.special import erf
 
 from app.clinical_history import get_patient_assessment_history
+from app.clinical_thresholds import MCID_THRESHOLDS
 from app.quality_thresholds import MIN_QUALITY_PCT_FOR_CLINICAL
 from app.quality_scale import quality_percent
 
@@ -41,6 +42,14 @@ EXPONENTIAL_DECAY = 0.85
 
 # Minimum standard deviation floor to prevent division by zero
 STD_FLOOR = 1e-4
+
+# Clinical variance floor for Z-scoring against the baseline. With only
+# three baseline dates the population std can be tiny, which turns a
+# sub-MCID change into |Z| >> 3 ("Markedly elevated"). The effective std
+# is never allowed below half the metric's MCID (where one exists) or
+# STD_REL_FLOOR of the baseline mean, so one MCID of change caps at
+# |Z| = 2 ("moderate") and 1.5 MCID is needed for "marked".
+STD_REL_FLOOR = 0.02
 
 # Quality threshold: exclude date groups whose Recording Quality
 # percentage is below MIN_QUALITY_PCT_FOR_CLINICAL (quality_thresholds.py)
@@ -339,8 +348,18 @@ def evaluate_against_baseline(
         baseline_mean = base["mean"]
         baseline_std = base["std"]
 
-        # Z-score: (Current - Baseline Mean) / Baseline Std
-        z_score = (val - baseline_mean) / baseline_std
+        # Effective std: stored std (rounded to 3 dp, so it can be 0.0)
+        # floored by the clinical variance floor -- see STD_REL_FLOOR.
+        mcid = MCID_THRESHOLDS["raw_biomarkers"].get(metric)
+        std_floor = max(
+            STD_FLOOR,
+            STD_REL_FLOOR * abs(float(baseline_mean)),
+            (float(mcid) / 2.0) if mcid else 0.0,
+        )
+        effective_std = max(float(baseline_std or 0.0), std_floor)
+
+        # Z-score: (Current - Baseline Mean) / Effective Std
+        z_score = (val - baseline_mean) / effective_std
 
         # Percentile rank (approximate, assuming normal distribution)
         percentile = float(0.5 * (1.0 + erf(z_score / np.sqrt(2.0)))) * 100.0
@@ -355,6 +374,7 @@ def evaluate_against_baseline(
             "current_value": float(val),
             "baseline_mean": baseline_mean,
             "baseline_std": baseline_std,
+            "effective_std": round(float(effective_std), 3),
             "baseline_ci_95": [base.get("ci_95_lower"), base.get("ci_95_upper")],
             "raw_deviation_z": round(float(z_score), 3),
             "percentile_rank": round(percentile, 1),

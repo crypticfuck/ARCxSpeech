@@ -116,12 +116,15 @@ def prepare_serial():
     capture request lands. Call record_audio(..., prepare_token=...)
     with the returned token to consume it."""
 
+    # Evict BEFORE opening: on Windows the COM port is exclusive, so a
+    # leaked prepared connection (missed release, page reload) would
+    # otherwise make every later open fail and never get evicted.
+    _evict_expired_prepared()
+
     ser = _open_and_settle_serial()
 
     token = uuid.uuid4().hex
     _prepared_connections[token] = (ser, time.monotonic() + PREPARE_EXPIRY_SECONDS)
-
-    _evict_expired_prepared()
 
     return token
 
@@ -129,7 +132,10 @@ def prepare_serial():
 def _evict_expired_prepared():
     now = time.monotonic()
     for stale_token in [t for t, (_, exp) in _prepared_connections.items() if exp < now]:
-        stale_ser, _ = _prepared_connections.pop(stale_token)
+        entry = _prepared_connections.pop(stale_token, None)
+        if entry is None:
+            continue  # consumed concurrently by _take_prepared_serial
+        stale_ser, _ = entry
         try:
             stale_ser.close()
         except Exception:
@@ -223,6 +229,7 @@ def record_audio(
     # don't pre-warm).
     ser = _take_prepared_serial(prepare_token)
     if ser is None:
+        _evict_expired_prepared()
         ser = _open_and_settle_serial()
 
     try:

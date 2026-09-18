@@ -60,7 +60,12 @@ def _recording_quality_factor(rating: Any) -> float:
     return RECORDING_QUALITY_FACTOR_FLOOR
 
 DOMAIN_WEIGHTS = {
-    "stability": {"Jitter Local": 0.40, "HNR": 0.35, "pitch_variability": 0.25},
+    # pitch_variability (across-take F0 SD) is deliberately NOT part of
+    # the stability composite: it only exists when a date has >= 2 takes,
+    # so including it made the score jump ~10 points purely from how
+    # many takes were recorded, which tripped the change detector's
+    # 10-point MCID. It is still computed and reported as evidence.
+    "stability": {"Jitter Local": 0.55, "HNR": 0.45},
     "timing": {"DDK Regularity": 0.45, "Pause/Speech Ratio": 0.35, "DDK Interval Std": 0.20},
     "coordination": {"DDK Repetition Rate": 0.50, "Speech Rate": 0.30, "DDK Interval Mean": 0.20},
     "phonatory_control": {"HNR": 0.40, "F0 proximity": 0.30, "formant_ratio": 0.30},
@@ -362,7 +367,6 @@ def _evaluate_stability(
     component_scores = {
         "Jitter Local": _normalize_metric(jitter, params["Jitter Local"]),
         "HNR": _normalize_metric(hnr, params["HNR"]),
-        "pitch_variability": _normalize_metric(pitch_variability, params["pitch_variability"]),
     }
     confidence = _compute_confidence(
         rq_classification, vowel_mean, vowel_sd, ["Jitter Local", "HNR", "F0 Mean"]
