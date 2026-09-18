@@ -1,0 +1,30 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# ---- Editors / OS ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- ARCxSpeech runtime data (per-machine, contains recordings) ----
+ARCxSpeech-main/projects/
+ARCxSpeech-main/recordings.json
+ARCxSpeech-main/research_sessions.json
+ARCxSpeech-main/baseline.json
+ARCxSpeech-main/verification_report.json
+*.wav
+*.bak
+.tmp_*.json
+
+# ---- Scratch ----
+*.patch
+*.log
