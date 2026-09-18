@@ -17,6 +17,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from app.quality_thresholds import (
+    QUALITY_EXCELLENT_PCT,
+    QUALITY_GOOD_PCT,
+    QUALITY_MODERATE_PCT,
+    QUALITY_POOR_PCT,
+)
+from app.quality_scale import quality_percent
+
 
 # =====================================================================
 # CONSTANTS AND SAFETY PARAMETERS
@@ -33,13 +41,23 @@ F0_TARGETS: Dict[str, Dict[str, float]] = {
 }
 VALID_SEX_CATEGORIES = frozenset(F0_TARGETS)
 
-RECORDING_QUALITY_FACTORS = {
-    "★★★★★": 1.00,
-    "★★★★☆": 0.85,
-    "★★★☆☆": 0.70,
-    "★★☆☆☆": 0.50,
-    "★☆☆☆☆": 0.25,
-}
+# Confidence multiplier per Recording Quality percentage tier
+# (thresholds live in quality_thresholds.py).
+RECORDING_QUALITY_FACTORS = [
+    (QUALITY_EXCELLENT_PCT, 1.00),
+    (QUALITY_GOOD_PCT, 0.85),
+    (QUALITY_MODERATE_PCT, 0.70),
+    (QUALITY_POOR_PCT, 0.50),
+]
+RECORDING_QUALITY_FACTOR_FLOOR = 0.25   # below QUALITY_POOR_PCT
+
+
+def _recording_quality_factor(rating: Any) -> float:
+    pct = quality_percent(rating)
+    for threshold, factor in RECORDING_QUALITY_FACTORS:
+        if pct >= threshold:
+            return factor
+    return RECORDING_QUALITY_FACTOR_FLOOR
 
 DOMAIN_WEIGHTS = {
     "stability": {"Jitter Local": 0.40, "HNR": 0.35, "pitch_variability": 0.25},
@@ -242,8 +260,8 @@ def _compute_confidence(
     sd_dict: Dict[str, Any],
     metric_keys: List[str],
 ) -> float:
-    rating = _safe_get(rq_classification, "Recording Quality Rating", "★★★☆☆")
-    quality_factor = RECORDING_QUALITY_FACTORS.get(rating, 0.70)
+    rating = _safe_get(rq_classification, "Recording Quality Rating", None)
+    quality_factor = _recording_quality_factor(rating)
     trial_factor = _compute_trial_consistency(mean_dict, sd_dict, metric_keys)
     return _clamp_score(round(100.0 * quality_factor * trial_factor, 1))
 
@@ -567,7 +585,7 @@ def verify_monotonicity_jitter() -> bool:
             sex="Male",
             vowel_mean={"F0 Mean": 120.0, "Jitter Local": jitter, "HNR": 20.0},
             ddk_mean={},
-            rq_classification={"Recording Quality Rating": "★★★★★"},
+            rq_classification={"Recording Quality Rating": 100},
         )
         current_score = state["stability"]["score"]
         if current_score > previous_score + EPSILON:
@@ -590,7 +608,7 @@ def verify_monotonicity_hnr() -> bool:
                 "F2 Mean": 1100.0,
             },
             ddk_mean={},
-            rq_classification={"Recording Quality Rating": "★★★★★"},
+            rq_classification={"Recording Quality Rating": 100},
         )
         current_score = state["phonatory_control"]["score"]
         if current_score < previous_score - EPSILON:

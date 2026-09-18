@@ -18,8 +18,8 @@
 #         |
 #   Displayed to clinician
 #
-# The analyzer computes metrics only. The classifier assigns star
-# rating / environment label / recommendation / confidence. Keeping
+# The analyzer computes metrics only. The classifier assigns a quality
+# percentage / environment label / recommendation / confidence. Keeping
 # them as separate functions means the raw metrics can be stored and
 # re-classified later if thresholds change, without re-analyzing audio.
 # ===========================================================
@@ -55,13 +55,15 @@ from app.quality_thresholds import (
     SILENCE_FRAME_MS,
     SILENCE_RMS_THRESHOLD,
     SILENCE_PCT_WARN,
-    SCORE_5_STAR,
-    SCORE_4_STAR,
-    SCORE_3_STAR,
-    SCORE_2_STAR,
+    QUALITY_EXCELLENT_PCT,
+    QUALITY_GOOD_PCT,
+    QUALITY_MODERATE_PCT,
+    QUALITY_POOR_PCT,
     CONFIDENCE_HIGH_SPREAD_DB,
     CONFIDENCE_MEDIUM_SPREAD_DB
 )
+
+from app.quality_scale import score_to_quality_percent
 
 
 EPS = 1e-10
@@ -394,7 +396,7 @@ def analyze_recording_quality(patient_filepath, ambient_filepath):
 
 
 # ===========================================================
-# Quality Classifier -- assigns star rating / label / recommendation
+# Quality Classifier -- assigns quality percentage / label / recommendation
 # ===========================================================
 
 def _cross_snr_base_score(cross_snr_db):
@@ -484,33 +486,34 @@ def classify_recording_quality(metrics):
 
     score = max(0, min(100, score))
 
-    if score >= SCORE_5_STAR:
+    # Operator-facing percentage. The raw composite score above stays
+    # untouched (it's still returned as "Recording Quality Score"); this
+    # is the same number re-mapped so tier boundaries land on the
+    # percentages in quality_thresholds.py.
+    quality_pct = score_to_quality_percent(score)
 
-        rating = "★★★★★"
+    if quality_pct >= QUALITY_EXCELLENT_PCT:
+
         environment = "Excellent Recording Environment"
         recommendation = "Suitable for clinical speech assessment."
 
-    elif score >= SCORE_4_STAR:
+    elif quality_pct >= QUALITY_GOOD_PCT:
 
-        rating = "★★★★☆"
         environment = "Good Recording Environment"
         recommendation = "Low background noise relative to patient speech."
 
-    elif score >= SCORE_3_STAR:
+    elif quality_pct >= QUALITY_MODERATE_PCT:
 
-        rating = "★★★☆☆"
         environment = "Moderate Recording Conditions"
         recommendation = "Recording is usable, but a quieter environment is recommended."
 
-    elif score >= SCORE_2_STAR:
+    elif quality_pct >= QUALITY_POOR_PCT:
 
-        rating = "★★☆☆☆"
         environment = "Poor Recording Conditions"
         recommendation = "Some speech measurements may be affected by background noise."
 
     else:
 
-        rating = "★☆☆☆☆"
         environment = "Very Poor Recording Conditions"
         recommendation = "Test results should be interpreted with caution due to low recording quality."
 
@@ -528,7 +531,7 @@ def classify_recording_quality(metrics):
 
     return {
         "Recording Quality Score": score,
-        "Recording Quality Rating": rating,
+        "Recording Quality Rating": quality_pct,   # integer percentage 0-100
         "Environment": environment,
         "Recommendation": recommendation,
         "Confidence": confidence

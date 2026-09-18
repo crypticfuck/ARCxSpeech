@@ -12,6 +12,8 @@ from typing import Dict, List, Any, Optional
 
 from app.clinical_thresholds import MCID_THRESHOLDS
 from app.insight_generator import generate_domain_insight
+from app.quality_thresholds import QUALITY_MODERATE_PCT
+from app.quality_scale import quality_percent
 
 
 # =====================================================================
@@ -141,11 +143,12 @@ def _detect_quality_artifacts(current_assessment: Dict[str, Any]) -> Optional[st
     is not just an environmental noise artifact.
     """
     rq_data = current_assessment.get("recording_quality_classification") or {}
-    rating = rq_data.get("Recording Quality Rating", "★★★☆☆")
+    rating_pct = quality_percent(rq_data.get("Recording Quality Rating"))
     rq_mean = current_assessment.get("recording_quality_mean") or {}
     clipping = bool(rq_mean.get("Clipping Detected", False))
 
-    if rating in ["★☆☆☆☆", "★★☆☆☆"]:
+    # "Poor" or "Very Poor" tier -> below the Moderate cut point.
+    if rating_pct < QUALITY_MODERATE_PCT:
         return "Caution: Current assessment has poor recording quality. Declines may be environmental artifacts."
     
     if clipping:

@@ -2053,25 +2053,46 @@ async function finishTaskRecording(cancelled) {
 // discards (Re-record) the take.
 const qualityCheckOverlay = container.querySelector("#qualityCheckOverlay");
 const qualityReviewTaskLabel = container.querySelector("#qualityReviewTaskLabel");
-const qualityReviewStars = container.querySelector("#qualityReviewStars");
+const qualityReviewPercent = container.querySelector("#qualityReviewPercent");
 const qualityReviewEnvTitle = container.querySelector("#qualityReviewEnvTitle");
 const qualityReviewEnvDesc = container.querySelector("#qualityReviewEnvDesc");
 const qualityReviewRerecordBtn = container.querySelector("#qualityReviewRerecordBtn");
 const qualityReviewCompleteBtn = container.querySelector("#qualityReviewCompleteBtn");
 
-function renderQualityStars(rating, max) {
-    let html = "";
-    for (let i = 1; i <= max; i++) {
-        html += `<span class="${i <= rating ? "star-filled" : "star-empty"}">${i <= rating ? "\u2605" : "\u2606"}</span>`;
+// Recording Quality percentage tiers -- keep in sync with
+// QUALITY_*_PCT in app/quality_thresholds.py.
+const QUALITY_PCT_EXCELLENT = 95;
+const QUALITY_PCT_GOOD = 90;
+const QUALITY_PCT_MODERATE = 85;
+const QUALITY_PCT_POOR = 80;
+
+// Recording Quality Rating comes back from the backend as an integer
+// percentage (0-100). Older recordings.json rows may still carry the
+// legacy "★★★★☆" star string -- map those onto
+// the tier percentages so the UI never has to show a star.
+function qualityPercentFromRating(rating) {
+    if (typeof rating === "number" && isFinite(rating)) return Math.round(Math.max(0, Math.min(100, rating)));
+    if (typeof rating === "string") {
+        const filled = (rating.match(/★/g) || []).length;
+        if (filled) return [0, QUALITY_PCT_POOR - 10, QUALITY_PCT_POOR, QUALITY_PCT_MODERATE, QUALITY_PCT_GOOD, QUALITY_PCT_EXCELLENT][filled] ?? null;
+        const n = parseFloat(rating);
+        if (isFinite(n)) return Math.round(Math.max(0, Math.min(100, n)));
     }
-    return html;
+    return null;
 }
 
-// Recording Quality Rating comes back from the backend as a star string,
-// e.g. "★★★★☆" -- counting the filled glyph gives the 0-5 rating.
-function starCountFromRatingString(ratingStr) {
-    if (typeof ratingStr !== "string") return 0;
-    return (ratingStr.match(/\u2605/g) || []).length;
+function qualityTierClass(pct) {
+    if (pct === null) return "quality-pct--unknown";
+    if (pct >= QUALITY_PCT_EXCELLENT) return "quality-pct--excellent";
+    if (pct >= QUALITY_PCT_GOOD) return "quality-pct--good";
+    if (pct >= QUALITY_PCT_MODERATE) return "quality-pct--moderate";
+    if (pct >= QUALITY_PCT_POOR) return "quality-pct--poor";
+    return "quality-pct--very-poor";
+}
+
+function renderQualityPercent(pct) {
+    const label = pct === null ? "—" : `${pct}%`;
+    return `<span class="quality-pct ${qualityTierClass(pct)}">${label}</span>`;
 }
 
 function showQualityCheckLoading() {
@@ -2099,8 +2120,8 @@ function showQualityCheckResult(recording) {
         return;
     }
 
-    const rating = starCountFromRatingString(qc["Recording Quality Rating"]);
-    if (qualityReviewStars) qualityReviewStars.innerHTML = renderQualityStars(rating, 5);
+    const pct = qualityPercentFromRating(qc["Recording Quality Rating"]);
+    if (qualityReviewPercent) qualityReviewPercent.innerHTML = renderQualityPercent(pct);
     if (qualityReviewEnvTitle) qualityReviewEnvTitle.textContent = qc["Environment"] || "";
     if (qualityReviewEnvDesc) qualityReviewEnvDesc.textContent = qc["Recommendation"] || "";
 
@@ -2971,7 +2992,14 @@ addDocListener("keydown", (e) => {
                 source = raw.ambient_metrics || {};
                 metrics = WIDGET_METRICS.Quality["Ambient/Spectral"];
             }
-            metrics.forEach(key => { values[key] = formatRawValue(source[key]); });
+            metrics.forEach(key => {
+                if (key === "Recording Quality Rating") {
+                    const pct = qualityPercentFromRating(source[key]);
+                    values[key] = pct === null ? "—" : `${pct}%`;
+                } else {
+                    values[key] = formatRawValue(source[key]);
+                }
+            });
             return values;
         }
 

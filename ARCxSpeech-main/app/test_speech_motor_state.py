@@ -48,8 +48,8 @@ class TestSpeechMotorStateEngine(unittest.TestCase):
     """
 
     def setUp(self):
-        # A perfect 5-star recording environment for baseline tests
-        self.rq_excellent = {"Recording Quality Rating": "★★★★★"}
+        # A perfect 100 % recording environment for baseline tests
+        self.rq_excellent = {"Recording Quality Rating": 100}
 
     def test_pristine_health_archetype(self):
         """

@@ -29,6 +29,7 @@ from typing import Any, Dict, List
 import pytest
 
 # Import the module under test
+from app.quality_scale import quality_percent
 from app.trajectory_mapper import (
     DOMAIN_WEIGHTS,
     EVALUATED_STATUSES,
@@ -39,7 +40,6 @@ from app.trajectory_mapper import (
     _calculate_fractional_days,
     _compute_balanced_contributions,
     _passes_quality_gate,
-    _quality_rating_to_int,
 )
 
 
@@ -98,7 +98,7 @@ def sample_assessments() -> List[Dict[str, Any]]:
                 },
             },
             "recording_quality_classification": {
-                "Recording Quality Rating": "★★★★☆" if i < 4 else "★★★☆☆"
+                "Recording Quality Rating": 90 if i < 4 else 85
             },
             "recording_quality_mean": {
                 "Clipping Detected": False,
@@ -138,7 +138,7 @@ def sample_assessments_missing_component() -> List[Dict[str, Any]]:
                 },
             },
         },
-        "recording_quality_classification": {"Recording Quality Rating": "★★★★☆"},
+        "recording_quality_classification": {"Recording Quality Rating": 90},
         "recording_quality_mean": {"Clipping Detected": False},
     }
 
@@ -166,7 +166,7 @@ def sample_assessments_missing_component() -> List[Dict[str, Any]]:
                 },
             },
         },
-        "recording_quality_classification": {"Recording Quality Rating": "★★★★☆"},
+        "recording_quality_classification": {"Recording Quality Rating": 90},
         "recording_quality_mean": {"Clipping Detected": False},
     }
 
@@ -192,7 +192,7 @@ def sample_assessments_same_day() -> List[Dict[str, Any]]:
                 },
             }
         },
-        "recording_quality_classification": {"Recording Quality Rating": "★★★★☆"},
+        "recording_quality_classification": {"Recording Quality Rating": 90},
         "recording_quality_mean": {"Clipping Detected": False},
     }
 
@@ -210,7 +210,7 @@ def sample_assessments_same_day() -> List[Dict[str, Any]]:
                 },
             }
         },
-        "recording_quality_classification": {"Recording Quality Rating": "★★★★☆"},
+        "recording_quality_classification": {"Recording Quality Rating": 90},
         "recording_quality_mean": {"Clipping Detected": False},
     }
 
@@ -219,7 +219,7 @@ def sample_assessments_same_day() -> List[Dict[str, Any]]:
 
 @pytest.fixture
 def low_quality_assessment() -> Dict[str, Any]:
-    """Generate a low-quality assessment (1-star, clipping)."""
+    """Generate a low-quality assessment (very-poor-quality, clipping)."""
     return {
         "patient_id": "P12345",
         "timestamp": "2026-08-25T13:00:00Z",
@@ -234,7 +234,7 @@ def low_quality_assessment() -> Dict[str, Any]:
                 },
             }
         },
-        "recording_quality_classification": {"Recording Quality Rating": "★☆☆☆☆"},
+        "recording_quality_classification": {"Recording Quality Rating": 60},
         "recording_quality_mean": {"Clipping Detected": True},
     }
 
@@ -325,26 +325,23 @@ class TestCalculateFractionalDays:
         assert result == pytest.approx(0.5, rel=0.01)
 
 
-class TestQualityRatingToInt:
-    """Test _quality_rating_to_int() function."""
+class TestQualityPercent:
+    """Test quality_percent() -- the shared rating -> percentage helper."""
 
-    def test_one_star(self):
-        assert _quality_rating_to_int("★☆☆☆☆") == 1
+    def test_numeric_passthrough(self):
+        assert quality_percent(87.4) == 87
 
-    def test_two_star(self):
-        assert _quality_rating_to_int("★★☆☆☆") == 2
+    def test_clamped(self):
+        assert quality_percent(140) == 100
+        assert quality_percent(-5) == 0
 
-    def test_three_star(self):
-        assert _quality_rating_to_int("★★★☆☆") == 3
+    def test_legacy_star_strings(self):
+        assert quality_percent("\u2605\u2605\u2605\u2605\u2605") == 95
+        assert quality_percent("\u2605\u2605\u2606\u2606\u2606") == 80
 
-    def test_four_star(self):
-        assert _quality_rating_to_int("★★★★☆") == 4
-
-    def test_five_star(self):
-        assert _quality_rating_to_int("★★★★★") == 5
-
-    def test_invalid_rating(self):
-        assert _quality_rating_to_int("Invalid") == 0
+    def test_invalid_rating_defaults(self):
+        assert quality_percent("Invalid") == 85
+        assert quality_percent(None) == 85
 
 
 class TestPassesQualityGate:
@@ -353,15 +350,15 @@ class TestPassesQualityGate:
     def test_high_quality_passes(self):
         """High-quality assessment passes gate."""
         assessment = {
-            "recording_quality_classification": {"Recording Quality Rating": "★★★★☆"},
+            "recording_quality_classification": {"Recording Quality Rating": 90},
             "recording_quality_mean": {"Clipping Detected": False},
         }
         assert _passes_quality_gate(assessment) is True
 
     def test_one_star_fails(self):
-        """1-star assessment fails gate."""
+        """very-poor-quality assessment fails gate."""
         assessment = {
-            "recording_quality_classification": {"Recording Quality Rating": "★☆☆☆☆"},
+            "recording_quality_classification": {"Recording Quality Rating": 60},
             "recording_quality_mean": {"Clipping Detected": False},
         }
         assert _passes_quality_gate(assessment) is False
@@ -369,7 +366,7 @@ class TestPassesQualityGate:
     def test_clipping_fails(self):
         """Assessment with clipping fails gate."""
         assessment = {
-            "recording_quality_classification": {"Recording Quality Rating": "★★★★☆"},
+            "recording_quality_classification": {"Recording Quality Rating": 90},
             "recording_quality_mean": {"Clipping Detected": True},
         }
         assert _passes_quality_gate(assessment) is False
@@ -575,7 +572,7 @@ class TestGenerateTimeBoundedTrajectory:
     def test_quality_gate_excludes_low_quality(
         self, sample_assessments, low_quality_assessment
     ):
-        """Quality gate should exclude 1-star and clipping sessions."""
+        """Quality gate should exclude very-poor-quality and clipping sessions."""
         all_assessments = sample_assessments + [low_quality_assessment]
 
         result = generate_time_bounded_trajectory(
@@ -848,7 +845,7 @@ class TestEdgeCases:
                     },
                 }
             },
-            "recording_quality_classification": {"Recording Quality Rating": "★★★★★"},
+            "recording_quality_classification": {"Recording Quality Rating": 100},
             "recording_quality_mean": {"Clipping Detected": False},
         }
 

@@ -20,6 +20,8 @@ import numpy as np
 from scipy.special import erf
 
 from app.clinical_history import get_patient_assessment_history
+from app.quality_thresholds import MIN_QUALITY_PCT_FOR_CLINICAL
+from app.quality_scale import quality_percent
 
 
 # =====================================================================
@@ -40,16 +42,8 @@ EXPONENTIAL_DECAY = 0.85
 # Minimum standard deviation floor to prevent division by zero
 STD_FLOOR = 1e-4
 
-# Quality threshold: exclude sessions below this rating
-MIN_QUALITY_RATING = "★★☆☆☆"
-
-QUALITY_RANK = {
-    "★☆☆☆☆": 1,
-    "★★☆☆☆": 2,
-    "★★★☆☆": 3,
-    "★★★★☆": 4,
-    "★★★★★": 5,
-}
+# Quality threshold: exclude date groups whose Recording Quality
+# percentage is below MIN_QUALITY_PCT_FOR_CLINICAL (quality_thresholds.py)
 
 # Metrics tracked longitudinally
 TRACKED_METRICS = {
@@ -63,11 +57,6 @@ TRACKED_METRICS = {
 # =====================================================================
 
 
-def _quality_rating_to_int(rating: str) -> int:
-    """Convert star rating to integer score."""
-    return QUALITY_RANK.get(rating, 0)
-
-
 def get_valid_patient_history(
     project_id: str,
     patient_id: str,
@@ -77,7 +66,7 @@ def get_valid_patient_history(
     Retrieve high-quality, valid past sessions for a patient.
 
     Quality gates:
-    - Exclude 1-star (Very Poor) recordings
+    - Exclude date groups below the minimum Recording Quality percentage
     - Exclude sessions with microphone clipping
     - Sort chronologically
 
@@ -93,13 +82,10 @@ def get_valid_patient_history(
         assessments = get_patient_assessment_history(project_id, patient_id)
     valid_records = []
 
-    min_quality_int = _quality_rating_to_int(MIN_QUALITY_RATING)
-
     for a in assessments:
-        # Quality Gate 1: Minimum star rating
+        # Quality Gate 1: Minimum Recording Quality percentage
         rq_class = a.get("recording_quality_classification", {})
-        rating = rq_class.get("Recording Quality Rating", "★★★☆☆")
-        if _quality_rating_to_int(rating) < min_quality_int:
+        if quality_percent(rq_class.get("Recording Quality Rating")) < MIN_QUALITY_PCT_FOR_CLINICAL:
             continue
 
         # Quality Gate 2: No clipping

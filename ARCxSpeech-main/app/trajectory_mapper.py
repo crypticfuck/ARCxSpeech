@@ -10,6 +10,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from app.quality_thresholds import MIN_QUALITY_PCT_FOR_CLINICAL
+from app.quality_scale import quality_percent
+
 DOMAIN_WEIGHTS: Dict[str, Dict[str, float]] = {
     "stability": {"Jitter Local": 0.40, "HNR": 0.35, "pitch_variability": 0.25},
     "timing": {"DDK Regularity": 0.45, "Pause/Speech Ratio": 0.35, "DDK Interval Std": 0.20},
@@ -18,18 +21,11 @@ DOMAIN_WEIGHTS: Dict[str, Dict[str, float]] = {
 }
 
 EVALUATED_STATUSES = {"Evaluated", "Evaluated (Partial)"}
-MIN_QUALITY_RATING = "★★☆☆☆"
-QUALITY_RANK = {"★☆☆☆☆": 1, "★★☆☆☆": 2, "★★★☆☆": 3, "★★★★☆": 4, "★★★★★": 5}
-
-
-def _quality_rating_to_int(rating: str) -> int:
-    return QUALITY_RANK.get(rating, 0)
 
 
 def _passes_quality_gate(assessment: Dict[str, Any]) -> bool:
     rq_class = assessment.get("recording_quality_classification", {})
-    rating = rq_class.get("Recording Quality Rating", "★★★☆☆")
-    if _quality_rating_to_int(rating) < _quality_rating_to_int(MIN_QUALITY_RATING):
+    if quality_percent(rq_class.get("Recording Quality Rating")) < MIN_QUALITY_PCT_FOR_CLINICAL:
         return False
     rq_mean = assessment.get("recording_quality_mean", {})
     if rq_mean.get("Clipping Detected", False):

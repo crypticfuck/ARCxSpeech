@@ -22,7 +22,7 @@ class TestChangeDetectorEngine(unittest.TestCase):
     Evaluates statistical math, MCID thresholds, and environmental artifact handling.
     """
 
-    def _build_mock_assessment(self, timestamp, stability_score, timing_score, rating="★★★★★", clipping=False):
+    def _build_mock_assessment(self, timestamp, stability_score, timing_score, rating=100, clipping=False):
         """Helper to quickly generate standard mock assessment JSON structures."""
         return {
             "patient_id": "PT-9999",
@@ -128,22 +128,22 @@ class TestChangeDetectorEngine(unittest.TestCase):
     def test_garbage_in_artifact(self):
         """
         Archetype 5: Environmental Noise False Positive.
-        A massive score drop occurs, but the current recording quality is 1-star.
+        A massive score drop occurs, but the current recording quality is very-poor-quality.
         Expectation: The math computes the drop, but the orchestrator injects an 
         artifact warning to prevent the clinician from misdiagnosing the patient.
         """
         assessments = [
-            self._build_mock_assessment("2026-01-01", 90.0, 90.0, rating="★★★★★"),
-            self._build_mock_assessment("2026-02-01", 91.0, 91.0, rating="★★★★☆"),
-            self._build_mock_assessment("2026-03-01", 89.0, 89.0, rating="★★★★★"),
-            self._build_mock_assessment("2026-04-01", 60.0, 90.0, rating="★☆☆☆☆")
+            self._build_mock_assessment("2026-01-01", 90.0, 90.0, rating=100),
+            self._build_mock_assessment("2026-02-01", 91.0, 91.0, rating=90),
+            self._build_mock_assessment("2026-03-01", 89.0, 89.0, rating=100),
+            self._build_mock_assessment("2026-04-01", 60.0, 90.0, rating=60)
         ]
         
         result = analyze_patient_trajectory(assessments)
         
         # We must see the specific environmental caution in the alerts
         artifact_alert_found = any("poor recording quality" in alert.lower() for alert in result["alerts"])
-        self.assertTrue(artifact_alert_found, "Engine failed to warn about the 1-star acoustic artifact.")
+        self.assertTrue(artifact_alert_found, "Engine failed to warn about the very-poor-quality acoustic artifact.")
 
     def test_missing_data_resilience(self):
         """

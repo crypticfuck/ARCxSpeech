@@ -31,36 +31,18 @@ from typing import Any, Dict, List, Optional
 
 from app import subject_store, recording_store
 from app.speech_motor_state import compute_speech_motor_state
-from app.quality_thresholds import (
-    SCORE_5_STAR,
-    SCORE_4_STAR,
-    SCORE_3_STAR,
-    SCORE_2_STAR,
-)
+from app.quality_scale import score_to_quality_percent
 
 VALID_SEX_CATEGORIES = {"Male", "Female"}
 
 
-def _score_to_star_rating(score: Optional[float]) -> str:
-    """Maps a numeric Recording Quality Score (0-100) to the star-rating
-    string baseline.py's and trajectory_mapper.py's quality gates key
-    off of. Session-level scores are already an average across that
-    session's recordings (recording_store._compute_mean on each
-    recording's quality_metrics), so this reclassifies the *averaged*
-    score using the same cut points recording_quality.py's
-    classify_recording_quality() uses per-recording, rather than
-    duplicating star-rating logic in a second place."""
-    if not isinstance(score, (int, float)):
-        return "★★★☆☆"
-    if score >= SCORE_5_STAR:
-        return "★★★★★"
-    if score >= SCORE_4_STAR:
-        return "★★★★☆"
-    if score >= SCORE_3_STAR:
-        return "★★★☆☆"
-    if score >= SCORE_2_STAR:
-        return "★★☆☆☆"
-    return "★☆☆☆☆"
+def _score_to_quality_percent(score: Optional[float]) -> int:
+    """Maps the date group's averaged raw Recording Quality Score (0-100)
+    to the Recording Quality percentage baseline.py's and
+    trajectory_mapper.py's quality gates key off of -- via the same
+    mapping recording_quality.py's classify_recording_quality() uses
+    per recording, so there's only one definition of the scale."""
+    return score_to_quality_percent(score)
 
 
 def build_assessment_record(
@@ -87,7 +69,7 @@ def build_assessment_record(
         summary = recording_store.compute_date_summary(project_id, subject_id, date)
 
     rq_mean = summary.get("recording_quality_mean") or {}
-    rating = _score_to_star_rating(summary.get("recording_quality_score_mean"))
+    rating = _score_to_quality_percent(summary.get("recording_quality_score_mean"))
 
     # The engine reads BOTH "Clipping Detected" (a metrics-mean key) and
     # "Recording Quality Rating" (a classification key) off this one

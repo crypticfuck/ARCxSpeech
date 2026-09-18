@@ -713,9 +713,9 @@
                  "Recording complete" confirmation. Stage 1 is a short
                  simulated chain-of-custody / signal-quality check; Stage 2
                  lets the user keep (Complete) or discard (Re-record) the
-                 take based on the result. Rating + environment copy are
-                 placeholders until the backend quality-check response is
-                 wired in. -->
+                 take based on the result. The Recording Quality percentage
+                 + environment copy are filled from the backend
+                 quality-check response (quality_classification). -->
             <div class="quality-check-overlay" id="qualityCheckOverlay">
 
                 <div class="quality-check-loading" id="qualityCheckLoading">
@@ -736,7 +736,7 @@
                     <h3 class="quality-review-heading">
                         <span id="qualityReviewTaskLabel">Sustained Vowel</span>
                         <span class="quality-review-dash">&mdash;</span>
-                        <span class="quality-review-stars" id="qualityReviewStars"></span>
+                        <span class="quality-review-percent" id="qualityReviewPercent"></span>
                     </h3>
 
                     <p class="quality-review-subtitle">Review this recording's quality before continuing.</p>

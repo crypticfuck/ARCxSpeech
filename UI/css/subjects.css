@@ -1816,21 +1816,26 @@ body.theme-light .subject-modal-submit--danger {
         font-weight: 500;
     }
 
-.quality-review-stars {
+.quality-review-percent {
         display: inline-flex;
-        gap: 1px;
         font-size: 18px;
         line-height: 1;
-        letter-spacing: 1px;
+        font-variant-numeric: tabular-nums;
     }
 
-.quality-review-stars .star-filled {
+/* Recording Quality percentage badge -- one colour per tier
+   (thresholds: 95 / 90 / 85 / 80, see app/quality_thresholds.py). */
+.quality-pct {
+        font-weight: 700;
         color: var(--text-primary);
     }
 
-.quality-review-stars .star-empty {
-        color: var(--text-tertiary);
-    }
+.quality-pct--excellent { color: #1f9d55; }
+.quality-pct--good      { color: #3a9d3a; }
+.quality-pct--moderate  { color: #c98a00; }
+.quality-pct--poor      { color: #d9642b; }
+.quality-pct--very-poor { color: #c62828; }
+.quality-pct--unknown   { color: var(--text-tertiary); }
 
 .quality-review-subtitle {
         margin: 0;

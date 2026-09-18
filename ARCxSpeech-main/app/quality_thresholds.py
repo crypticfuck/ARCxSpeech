@@ -58,12 +58,34 @@ SILENCE_FRAME_MS = 25.0
 SILENCE_RMS_THRESHOLD = 0.005      # per-frame RMS below this = silence
 SILENCE_PCT_WARN = 30.0            # % of frames silent -> flag/penalty
 
-# ---- Composite score -> star rating (0-100 composite score) -----
-SCORE_5_STAR = 85
-SCORE_4_STAR = 70
-SCORE_3_STAR = 55
-SCORE_2_STAR = 35
-# below SCORE_2_STAR -> 1 star
+# ---- Raw composite score tiers (0-100, internal) -----------------
+# The analyzer's composite score (SNR base score minus noise-floor /
+# clipping / silence penalties) is still computed on this raw scale.
+# These are the raw cut points between the five environment tiers.
+RAW_SCORE_EXCELLENT = 85
+RAW_SCORE_GOOD = 70
+RAW_SCORE_MODERATE = 55
+RAW_SCORE_POOR = 35
+# below RAW_SCORE_POOR -> Very Poor
+
+# ---- Recording Quality percentage (what the operator sees) --------
+# The raw score is mapped piecewise-linearly onto a 0-100 % scale so
+# that each raw tier cut point lands on the percentage below (see
+# app/quality_scale.py). "Recording Quality Rating" is stored and
+# displayed as this integer percentage everywhere in the app.
+QUALITY_EXCELLENT_PCT = 95   # >= 95 %  Excellent
+QUALITY_GOOD_PCT = 90        # >= 90 %  Good
+QUALITY_MODERATE_PCT = 85    # >= 85 %  Moderate
+QUALITY_POOR_PCT = 80        # >= 80 %  Poor
+# below QUALITY_POOR_PCT -> Very Poor
+
+# Percentage assumed when a record carries no rating at all
+# (previously the "★★★☆☆" default).
+DEFAULT_QUALITY_PCT = QUALITY_MODERATE_PCT
+
+# Minimum percentage for a date group to enter the longitudinal
+# engines (baseline / trajectory). Previously "★★☆☆☆".
+MIN_QUALITY_PCT_FOR_CLINICAL = QUALITY_POOR_PCT
 
 # ---- Confidence -----------------------------------------------
 # Confidence is based on agreement between the independent SNR
